@@ -1,0 +1,12 @@
+﻿## Interface: 60200
+## Title: PlayerRep
+## Notes: Keep track of what you think of the people you meet.
+## Author: LanceDH
+## Version: 6.2.01
+## OptionalDeps: Ace3
+## SavedVariables: AceDBPlayerDB
+## SavedVariablesPerCharacter: PREP_SavedData
+PlayerRep.xml
+PlayerRep.lua
+HelpFrame.xml
+HelpFrame.lua
