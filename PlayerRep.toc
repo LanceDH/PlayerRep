@@ -4,7 +4,7 @@
 ## Author: LanceDH
 ## Version: 6.2.01
 ## OptionalDeps: Ace3
-## SavedVariables: AceDBPlayerDB
+## SavedVariables: PrepDB
 ## SavedVariablesPerCharacter: PREP_SavedData
 PlayerRep.xml
 PlayerRep.lua

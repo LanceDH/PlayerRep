@@ -16,6 +16,38 @@
 		<TexCoords left="1" right="0.355" top="0.71" bottom="0.944"/>	
 	</Texture>
 
+	<CheckButton name="PREP_FriendsButtonTemplate" hidden="true" virtual="true" >
+		<Size x="36" y="36"/>	
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture name="$parentBackground"  parentKey="bg">
+					<Anchors>
+						<Anchor point="TOPLEFT" x="-9"/>
+						<Anchor point="BOTTOMRIGHT" x="6" y="-2"/>
+					</Anchors>
+					<TexCoords left="0.1" right="1" top="0" bottom="0.65"/>
+				</Texture>
+			</Layer>
+		</Layers>	
+		<Scripts>
+			<OnLeave>
+				GameTooltip:Hide();
+			</OnLeave>
+		</Scripts>
+		<HighlightTexture name="$parentHighlight" file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD">
+			<Anchors>
+				<Anchor point="TOPLEFT" x="2" y="-1"/>
+				<Anchor point="BOTTOMRIGHT" x="-2" y="2"/>
+			</Anchors>
+		</HighlightTexture>
+		<CheckedTexture file="Interface\Buttons\CheckButtonHilight" alphaMode="ADD">
+			<Anchors>
+				<Anchor point="TOPLEFT" x="2" y="-1"/>
+				<Anchor point="BOTTOMRIGHT" x="-2" y="2"/>
+			</Anchors>
+		</CheckedTexture>
+	</CheckButton>
+	
 	<Button name="PREP_ListChoiseTemplate" hidden="false" inherits="SecureFrameTemplate" virtual="true">
 		<Size>
 			<AbsDimension x="70" y="25"/>
@@ -112,7 +144,7 @@
 				</FontString>           
 				
 				
-				<FontString name="$parent01" inherits="GameFontNormal" hidden="false" justifyH="LEFT" text="First seen:">
+				<FontString name="$parent01" inherits="GameFontNormal" hidden="false" justifyH="LEFT" parentKey="txt01" text="First seen:">
 					<Size>
 						<AbsDimension x="75" y="15"/>
 					</Size>
@@ -129,7 +161,7 @@
 					</Anchors>
 				</FontString>
 				
-				<FontString name="$parent02" inherits="GameFontNormal" hidden="false" justifyH="LEFT" text="Last seen:">
+				<FontString name="$parent02" inherits="GameFontNormal" hidden="false" justifyH="LEFT" parentKey="txt02" text="Last seen:">
 					<Size>
 						<AbsDimension x="75" y="15"/>
 					</Size>
@@ -234,7 +266,7 @@
 					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="2" />
 				</Anchors>
 				
-				<NormalTexture file="Interface\Buttons\Arrow-Up-Disabled"/>
+				<NormalTexture file="Interface\Buttons\Arrow-Up-Disabled" parentKey="texture"/>
 				<PushedTexture file="Interface\Buttons\Arrow-Up-Down"/>
 				<DisabledTexture file="Interface\Buttons\Arrow-Up-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\Arrow-Up-Up" alphaMode="ADD"/>
@@ -258,7 +290,7 @@
 					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="20" y="-5"/>
 				</Anchors>
 				
-				<NormalTexture file="Interface\Buttons\Arrow-Down-Disabled"/>
+				<NormalTexture file="Interface\Buttons\Arrow-Down-Disabled" parentKey="texture"/>
 				<PushedTexture file="Interface\Buttons\Arrow-Down-Down"/>
 				<DisabledTexture file="Interface\Buttons\Arrow-Down-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\Arrow-Down-Up" alphaMode="ADD"/>
@@ -281,7 +313,7 @@
 					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="40" y="-3"/>
 				</Anchors>
 				
-				<NormalTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled"/>
+				<NormalTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled" parentKey="texture"/>
 				<PushedTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled"/>
 				<DisabledTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Up" alphaMode="ADD"/>
@@ -447,7 +479,7 @@
 	</CheckButton>
 	
 
-	<Frame name="PREP_UnlockContainer" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" inherits="ButtonFrameTemplate" frameStrata="MEDIUM">
+	<Frame name="PREP_PlayerMetContainer" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" inherits="ButtonFrameTemplate" frameStrata="MEDIUM">
 		<Size>
 			<AbsDimension x="450" y="525"/>
 		</Size>
@@ -468,7 +500,7 @@
 		
 			<Button name="$parentTutorialButton" parentKey="MainHelpButton" inherits="MainHelpPlateButton">
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="PREP_UnlockContainer" x="39" y="20" />
+					<Anchor point="TOPLEFT" relativeTo="PREP_PlayerMetContainer" x="39" y="20" />
 				</Anchors>
 				<Scripts>
 					<OnClick>
@@ -495,7 +527,7 @@
 					</OnClick>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT", -3, -3);
-						GameTooltip:SetText("Remove all unread unlocks.");
+						GameTooltip:SetText("Remove all neutral players.");
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
@@ -765,9 +797,9 @@
 
 			</Button>
 			
-			<Frame name="PREP_UnlockContainerOptions" hidden="true" enableMouse="true" inherits="UIPanelDialogTemplate" frameStrata="HIGH">
+			<Frame name="PREP_Options" hidden="true" enableMouse="true" inherits="UIPanelDialogTemplate" frameStrata="HIGH">
 				<Size>
-					<AbsDimension x="325" y="240"/>
+					<AbsDimension x="325" y="165"/>
 				</Size>
 				
 				<Anchors>
@@ -788,7 +820,7 @@
 				</Layers>
 				
 				<Frames>
-					<CheckButton name="$parentCBPopup" inherits="UICheckButtonTemplate" parentKey="CBShowPopup" checked="true">
+					<CheckButton name="$parentCBPopup" inherits="UICheckButtonTemplate" hidden="true" parentKey="CBShowPopup" checked="true">
 						<Anchors>
 							<Anchor point="topleft" x="25" y="-40"/>
 						</Anchors>
@@ -815,19 +847,17 @@
 						</Scripts>
 					</CheckButton>
 					
-					<Frame name="$parentTrackContainer" hidden="false" inherits="InsetFrameTemplate" parentKey="Trackers" frameStrata="HIGH">
-						<Size>
-						</Size>
+					<Frame name="$parentFormats" hidden="false" inherits="InsetFrameTemplate" parentKey="format" frameStrata="HIGH">
+						<Size x="275" y="60"/>
 						<Anchors>
 							<Anchor point="topleft" relativeTo="$parentCBPopup" relativePoint="bottomleft" x="0" y="-5"/>
-							<Anchor point="bottomright" relativeTo="$parent" relativePoint="bottomright" x="-25" y="25"/>
 						</Anchors>
 						
 						<Layers>
 							<Layer level="overlay">
-								<FontString name="$parentText" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="Choose which unlock types you want to track while leveling.">
+								<FontString name="$parentText" inherits="GameFontNormal" justifyH="LEFT" justifyV="TOP" text="Date and time format">
 									<Size>
-										<AbsDimension y="30"/>
+										<AbsDimension y="15"/>
 									</Size>
 									<Anchors>
 										<Anchor point="TOPLEFT" relativeTo="$parent" x="10" y="-8"/>
@@ -838,13 +868,13 @@
 						</Layers>
 						
 						<Frames>
-							<CheckButton name="$parentCBSpell" inherits="UICheckButtonTemplate" parentKey="Spells" checked="true">
+							<CheckButton name="$parentCBDate" inherits="UICheckButtonTemplate" parentKey="date" checked="false">
 								<Anchors>
 									<Anchor point="TOPLEFT" relativeTo="$parentText" relativePoint="BOTTOMLEFT" y="-5"/>
 								</Anchors>
 								<Layers>
 									<Layer level="overlay">
-										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Spells">
+										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Use US dates">
 											<Size>
 												<AbsDimension x="90" y="20"/>
 											</Size>
@@ -858,7 +888,7 @@
 								<Scripts>
 									<OnEnter>
 										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Spells, abilities and passives.");
+										GameTooltip:SetText("Show dates using mm/dd/yyyy rather than dd/mm/yyyy.");
 									</OnEnter>
 									<OnLeave>
 										GameTooltip:Hide();
@@ -866,13 +896,13 @@
 								</Scripts>
 							</CheckButton>
 							
-							<CheckButton name="$parentCBRiding" inherits="UICheckButtonTemplate" parentKey="Riding" checked="true">
+							<CheckButton name="$parentCBTime" inherits="UICheckButtonTemplate" parentKey="time" checked="false">
 								<Anchors>
-									<Anchor point="LEFT" relativeTo="$parentCBSpell" relativePoint="RIGHT" x="90"/>
+									<Anchor point="LEFT" relativeTo="$parentCBDate" relativePoint="RIGHT" x="90"/>
 								</Anchors>
 								<Layers>
 									<Layer level="overlay">
-										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Riding Skills">
+										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Use 12h clock">
 											<Size>
 												<AbsDimension x="90" y="20"/>
 											</Size>
@@ -885,115 +915,7 @@
 								<Scripts>
 									<OnEnter>
 										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Learnable riding skills.");
-									</OnEnter>
-									<OnLeave>
-										GameTooltip:Hide();
-									</OnLeave>
-								</Scripts>
-							</CheckButton>
-							
-							<CheckButton name="$parentCBTalent" inherits="UICheckButtonTemplate" parentKey="Talents" checked="true">
-								<Anchors>
-									<Anchor point="topleft" relativeTo="$parentCBSpell" y="-30"/>
-								</Anchors>
-								<Layers>
-									<Layer level="overlay">
-										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Talents">
-											<Size>
-												<AbsDimension x="90" y="20"/>
-											</Size>
-											<Anchors>
-												<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT" />
-											</Anchors>
-										</FontString>
-									</Layer>
-								</Layers>
-								<Scripts>
-									<OnEnter>
-										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("New talent points.");
-									</OnEnter>
-									<OnLeave>
-										GameTooltip:Hide();
-									</OnLeave>
-								</Scripts>
-							</CheckButton>
-							
-							<CheckButton name="$parentCBGlyph" inherits="UICheckButtonTemplate" parentKey="Glyphs" checked="true">
-								<Anchors>
-									<Anchor point="LEFT" relativeTo="$parentCBTalent" relativePoint="RIGHT" x="90"/>
-								</Anchors>
-								<Layers>
-									<Layer level="overlay">
-										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Glyphs">
-											<Size>
-												<AbsDimension x="90" y="20"/>
-											</Size>
-											<Anchors>
-												<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT" />
-											</Anchors>
-										</FontString>
-									</Layer>
-								</Layers>
-								<Scripts>
-									<OnEnter>
-										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("New glyph slots.");
-									</OnEnter>
-									<OnLeave>
-										GameTooltip:Hide();
-									</OnLeave>
-								</Scripts>
-							</CheckButton>
-							
-							<CheckButton name="$parentCBDungeon" inherits="UICheckButtonTemplate" parentKey="Dungeons" checked="true">
-								<Anchors>
-									<Anchor point="topleft" relativeTo="$parentCBTalent" y="-30"/>
-								</Anchors>
-								<Layers>
-									<Layer level="overlay">
-										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Dungeons">
-											<Size>
-												<AbsDimension x="90" y="20"/>
-											</Size>
-											<Anchors>
-												<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT" />
-											</Anchors>
-										</FontString>
-									</Layer>
-								</Layers>
-								<Scripts>
-									<OnEnter>
-										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Dungeons you can queue for.");
-									</OnEnter>
-									<OnLeave>
-										GameTooltip:Hide();
-									</OnLeave>
-								</Scripts>
-							</CheckButton>
-							
-							<CheckButton name="$parentCBPvP" inherits="UICheckButtonTemplate" parentKey="PvP" checked="true">
-								<Anchors>
-									<Anchor point="LEFT" relativeTo="$parentCBDungeon" relativePoint="RIGHT" x="90"/>
-								</Anchors>
-								<Layers>
-									<Layer level="overlay">
-										<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Battlegrounds">
-											<Size>
-												<AbsDimension x="90" y="20"/>
-											</Size>
-											<Anchors>
-												<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT" />
-											</Anchors>
-										</FontString>
-									</Layer>
-								</Layers>
-								<Scripts>
-									<OnEnter>
-										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Battlegrounds you can queue for.");
+										GameTooltip:SetText("Use 12h clock rather than 24h.");
 									</OnEnter>
 									<OnLeave>
 										GameTooltip:Hide();
@@ -1025,13 +947,13 @@
 				UnlockContainer_OnMouseWheel(self, delta);
 			</OnMouseWheel>
 			<OnShow>
-				PREP_SpellBookTab:SetChecked(true);
-				PREP_ShowUnlockedContent();
+				PREP_FriendsTab:SetChecked(true);
+				PREP_UpdateContainer();
 			</OnShow>
 			<OnHide>
 				PlaySound("igSpellBookClose");
 				PREP_HelpFrame:Hide();
-				PREP_SpellBookTab:SetChecked(false);
+				PREP_FriendsTab:SetChecked(false);
 				PREP_ShowHelpUnlocks(false);
 			</OnHide>
 		</Scripts>

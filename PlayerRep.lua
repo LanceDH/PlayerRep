@@ -6,21 +6,26 @@
 local addonName, _addonData = ...;
 
 local AceGUI = LibStub("AceGUI-3.0");
-local PlayerRepAddon = LibStub("AceAddon-3.0"):NewAddon("PlayerRep")
+local PlayerRep = LibStub("AceAddon-3.0"):NewAddon("PlayerRep")
 
-local _defaults = {
+local a = time();
+
+local _db = nil;
+
+local defaults = {
 	global = {
-		playersMet = {{
-			["race"] = "",
-			["name"] = "",
-			["sex"] = "",
-			["score"] = 0,
-			["class"] = "",
-			["firstStamp"] = 0,
-			["latestStamp"] = 0,
-		}}
+		playersMet = {},
+		options = {
+			formatDate = false;
+			formatTime = false;
+		}
 	}
 }
+
+local _options = {
+			formatDate = false;
+			formatTime = false;
+		}
 
 local _playersMet = {};
 local _currentGroup = {};
@@ -76,8 +81,8 @@ local TOOLTIP_TALENT = "Left click to pick your new talent.";
 local TOOLTIP_INSTANCE = "Left click to open the encounter\n journal for this instance.";
 local TOOLTIP_GLYPH = "Left click to pick your new glyphs.";
 local TOOLTIP_PVP = "Left click to open the\n battleground window.";
-local TOOLTIP_COMBAT = "|cFFFF5555Can't open during combat|r";
-local TOOLTIP_SPELLBOOK_ICON = "Unlocked content";
+local TOOLTIP_COMBAT = "|cFFFF5555Can't open during combat.|r";
+local TOOLTIP_FRIEND_ICON = "Players met.";
 
 local _helpPlate = {
 	FramePos = { x = 5,	y = -25 },
@@ -101,15 +106,15 @@ local function UpdateShowButtons()
 		end
 	end
 	
-	local btn = PREP_UnlockContainer.showMetButton;
+	local btn = PREP_PlayerMetContainer.showMetButton;
 	btn.count:SetText(neutralCount);
 	
-	btn = PREP_UnlockContainer.showLikeButton;
+	btn = PREP_PlayerMetContainer.showLikeButton;
 	btn.count:SetText(likeCount);
 	
-	btn = PREP_UnlockContainer.showDislikeButton;
+	btn = PREP_PlayerMetContainer.showDislikeButton;
 	btn.count:SetText(dislikeCount);
-	
+
 	return neutralCount, likeCount, dislikeCount;
 end
 
@@ -153,7 +158,7 @@ function PREP_ShowHelpUnlocks(show)
 			
 	if show then 
 		local n, l, d = UpdateShowButtons();
-		PREP_UnlockContainer.display = DISPLAY_MET;
+		PREP_PlayerMetContainer.display = DISPLAY_MET;
 		if (n == 0) then
 			for k, p in ipairs(tutPlayers) do
 				table.insert(_playersMet, p);
@@ -167,21 +172,21 @@ function PREP_ShowHelpUnlocks(show)
 		end
 	end
 	
-	PREP_ShowUnlockedContent();
+	PREP_UpdateContainer();
 end
 
-local function SetDateTimeFormat(useEU, use24)
+local function SetDateTimeFormat(useUS, use12)
 	local text = "";
-	if (useEU) then
-		text = FORMAT_DATE_EU;
-	else
+	if (useUS) then
 		text = FORMAT_DATE_US;
+	else
+		text = FORMAT_DATE_EU;
 	end
 	
-	if (use24) then
-		text = text .. " " .. FORMAT_TIME_24;
+	if (use12) then
+		text = text .. " " .. FORMAT_TIME_12;
 	else
-		text = text .. " " ..  FORMAT_TIME_12;
+		text = text .. " " ..  FORMAT_TIME_24;
 	end
 	
 	_dateTimeFormat = text;
@@ -210,8 +215,8 @@ local function ShowUnlockContainer()
 		return;
 	else
 		PREP_AlertPopup:Hide();
-		PREP_SpellBookTab:SetChecked(true);
-		PREP_UnlockContainer:Show();
+		PREP_FriendsTab:SetChecked(true);
+		PREP_PlayerMetContainer:Show();
 		PlaySound("igSpellBookOpen");
 	end
 	
@@ -230,10 +235,10 @@ end
 
 local function ToggleOptionFrame()
 
-	if (PREP_UnlockContainerOptions:IsShown()) then
-		PREP_UnlockContainerOptions:Hide();
+	if (PREP_Options:IsShown()) then
+		PREP_Options:Hide();
 	else
-		PREP_UnlockContainerOptions:Show();
+		PREP_Options:Show();
 	end
 
 end
@@ -249,6 +254,16 @@ function PREP_OptionsFrame_EnableBack(enabled)
 	for i=1, PLAYERS_PER_PAGE do
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
 		button:EnableMouse(enabled);
+		button.upvote:EnableMouse(enabled);
+		button.upvote.texture:SetVertexColor(color, color, color, 1);
+		button.downvote:EnableMouse(enabled);
+		button.downvote.texture:SetVertexColor(color, color, color, 1);
+		button.noteBtn:EnableMouse(enabled);
+		button.noteBtn.texture:SetVertexColor(color, color, color, 1);
+		button.iconRace:SetVertexColor(color, color, color, 1);
+		button.iconClass:SetVertexColor(color, color, color, 1);
+		button.scorePositive:SetVertexColor(0, color, 0, 0.2);
+		button.scoreNegative:SetVertexColor(color, 0, color, 0.2);
 		if enabled then
 			button.name:SetTextColor(1.0, 0.82, 0, 1);
 		else
@@ -256,11 +271,27 @@ function PREP_OptionsFrame_EnableBack(enabled)
 		end
 	end
 
-	PREP_UnlockContainer.Clear:EnableMouse(enabled);
-	PREP_UnlockContainer.Navigation.Prev:EnableMouse(enabled);
-	PREP_UnlockContainer.Navigation.Next:EnableMouse(enabled);
+	PREP_PlayerMetContainer.Clear:EnableMouse(enabled);
+	PREP_PlayerMetContainer.Navigation.Prev:EnableMouse(enabled);
+	PREP_PlayerMetContainer.Navigation.Next:EnableMouse(enabled);
 	
-	PREP_UnlockContainer.bg:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.bg:SetVertexColor(color, color, color, 1);
+	
+	-- Player detail
+	PREP_PlayerDetails.iconRace:SetVertexColor(color, color, color, 1);
+	PREP_PlayerDetails.iconClass:SetVertexColor(color, color, color, 1);
+	PREP_PlayerDetails.scorePositive:SetVertexColor(0, color, 0, 0.2);
+	PREP_PlayerDetails.scoreNegative:SetVertexColor(color, 0, color, 0.2);
+	if enabled then
+		PREP_PlayerDetails.name:SetTextColor(1.0, 0.82, 0, 1);
+		PREP_PlayerDetails.txt01:SetTextColor(1.0, 0.82, 0, 1);
+		PREP_PlayerDetails.txt02:SetTextColor(1.0, 0.82, 0, 1);
+	else
+		PREP_PlayerDetails.name:SetTextColor(0.5, 0.42, 0, 1);
+		PREP_PlayerDetails.txt01:SetTextColor(0.5, 0.42, 0, 1);
+		PREP_PlayerDetails.txt02:SetTextColor(0.5, 0.42, 0, 1);
+	end
+	
 end
 
 function PREP_OptionsButton_OnClick()
@@ -268,19 +299,19 @@ function PREP_OptionsButton_OnClick()
 end
 
 function PREP_PrevPageButton_OnClick()
-	if (PREP_UnlockContainer.CurrentPage == 1) then return; end
+	if (PREP_PlayerMetContainer.CurrentPage == 1) then return; end
 	PlaySound("igAbiliityPageTurn");
-	PREP_UnlockContainer.CurrentPage = PREP_UnlockContainer.CurrentPage - 1;
-	PREP_UnlockContainer.Navigation.Text:SetText("Page ".. PREP_UnlockContainer.CurrentPage);
-	PREP_ShowUnlockedContent();
+	PREP_PlayerMetContainer.CurrentPage = PREP_PlayerMetContainer.CurrentPage - 1;
+	PREP_PlayerMetContainer.Navigation.Text:SetText("Page ".. PREP_PlayerMetContainer.CurrentPage);
+	PREP_UpdateContainer();
 end
 
 function PREP_NextPageButton_OnClick()
-	if (PREP_UnlockContainer.CurrentPage >= ceil(#_playersMet/PLAYERS_PER_PAGE)) then return; end
+	if (PREP_PlayerMetContainer.CurrentPage >= ceil(#_playersMet/PLAYERS_PER_PAGE)) then return; end
 	PlaySound("igAbiliityPageTurn");
-	PREP_UnlockContainer.CurrentPage = PREP_UnlockContainer.CurrentPage + 1;
-	PREP_UnlockContainer.Navigation.Text:SetText("Page ".. PREP_UnlockContainer.CurrentPage);
-	PREP_ShowUnlockedContent();
+	PREP_PlayerMetContainer.CurrentPage = PREP_PlayerMetContainer.CurrentPage + 1;
+	PREP_PlayerMetContainer.Navigation.Text:SetText("Page ".. PREP_PlayerMetContainer.CurrentPage);
+	PREP_UpdateContainer();
 end
 
 function UnlockContainer_OnMouseWheel(self, delta)
@@ -311,31 +342,31 @@ function PREP_UpdateNavigation()
 
 	local totalPages = 0;
 	
-	if (PREP_UnlockContainer.display == DISPLAY_MET) then
+	if (PREP_PlayerMetContainer.display == DISPLAY_MET) then
 		totalPages = ceil(n/PLAYERS_PER_PAGE);
-	elseif (PREP_UnlockContainer.display == DISPLAY_LIKE) then
+	elseif (PREP_PlayerMetContainer.display == DISPLAY_LIKE) then
 		totalPages = ceil(l/PLAYERS_PER_PAGE);
-	elseif (PREP_UnlockContainer.display == DISPLAY_DISLIKE) then
+	elseif (PREP_PlayerMetContainer.display == DISPLAY_DISLIKE) then
 		totalPages = ceil(d/PLAYERS_PER_PAGE);
 	end
 
-	if (totalPages > 0 and PREP_UnlockContainer.CurrentPage > totalPages) then
-		PREP_UnlockContainer.CurrentPage = totalPages;
+	if (totalPages > 0 and PREP_PlayerMetContainer.CurrentPage > totalPages) then
+		PREP_PlayerMetContainer.CurrentPage = totalPages;
 	end
 
-	PREP_UnlockContainer.Navigation.Text:SetText("Page ".. PREP_UnlockContainer.CurrentPage);
+	PREP_PlayerMetContainer.Navigation.Text:SetText("Page ".. PREP_PlayerMetContainer.CurrentPage);
 	
-	PREP_UnlockContainer.Navigation.Prev:Enable();
-	PREP_UnlockContainer.Navigation.Next:Enable();
+	PREP_PlayerMetContainer.Navigation.Prev:Enable();
+	PREP_PlayerMetContainer.Navigation.Next:Enable();
 
 	-- disable prev on first page;
-	if (PREP_UnlockContainer.CurrentPage == 1) then
-		PREP_UnlockContainer.Navigation.Prev:Disable();
+	if (PREP_PlayerMetContainer.CurrentPage == 1) then
+		PREP_PlayerMetContainer.Navigation.Prev:Disable();
 	end
 
 	-- disable next page if on last page
-	if (totalPages == 0 or PREP_UnlockContainer.CurrentPage == totalPages) then
-		PREP_UnlockContainer.Navigation.Next:Disable();
+	if (totalPages == 0 or PREP_PlayerMetContainer.CurrentPage == totalPages) then
+		PREP_PlayerMetContainer.Navigation.Next:Disable();
 	end
 
 end
@@ -374,11 +405,13 @@ local function ChangePlayerScore(button, change)
 		end
 	end
 	
-	PREP_ShowUnlockedContent();
+	PREP_UpdateContainer();
 	
 end
 
 local function ShowPlayerDetails(player)
+	if player == nil then return; end
+	PREP_PlayerDetails.player = player;
 	PREP_PlayerDetails.name:SetText(player.name);
 	PREP_PlayerDetails.stampFirst:SetText(date(_dateTimeFormat, player.firstStamp));
 	PREP_PlayerDetails.stampLast:SetText(date(_dateTimeFormat, player.latestStamp));
@@ -404,45 +437,45 @@ local function ShowPlayerDetails(player)
 end
 
 function PREP_CreateContainer()
-	PREP_UnlockContainer:SetPoint("center", UIParent, "center", 0, 0);
+	PREP_PlayerMetContainer:SetPoint("center", UIParent, "center", 0, 0);
 
-	PREP_UnlockContainer:SetMovable(true);
-	PREP_UnlockContainer:EnableMouse(true);
-	PREP_UnlockContainer:SetClampedToScreen(true);
-	PREP_UnlockContainer:SetToplevel(true)
-	PREP_UnlockContainer:RegisterForDrag("LeftButton");
-	PREP_UnlockContainer:SetScript("OnDragStart", PREP_UnlockContainer.StartMoving );
-	PREP_UnlockContainer:SetScript("OnDragStop", PREP_UnlockContainer.StopMovingOrSizing);
+	PREP_PlayerMetContainer:SetMovable(true);
+	PREP_PlayerMetContainer:EnableMouse(true);
+	PREP_PlayerMetContainer:SetClampedToScreen(true);
+	PREP_PlayerMetContainer:SetToplevel(true)
+	PREP_PlayerMetContainer:RegisterForDrag("LeftButton");
+	PREP_PlayerMetContainer:SetScript("OnDragStart", PREP_PlayerMetContainer.StartMoving );
+	PREP_PlayerMetContainer:SetScript("OnDragStop", PREP_PlayerMetContainer.StopMovingOrSizing);
 	-- allows the player to close the frame using Esc like regular blizzard windows
-	table.insert(UISpecialFrames, "PREP_UnlockContainer")
+	table.insert(UISpecialFrames, "PREP_PlayerMetContainer")
 	
-	PREP_UnlockContainer.showMetButton:SetScript("OnClick", function(self)
-									PREP_UnlockContainer.display = DISPLAY_MET;
-									PREP_UnlockContainer.CurrentPage = 1;
-									PREP_ShowUnlockedContent(); 
+	PREP_PlayerMetContainer.showMetButton:SetScript("OnClick", function(self)
+									PREP_PlayerMetContainer.display = DISPLAY_MET;
+									PREP_PlayerMetContainer.CurrentPage = 1;
+									PREP_UpdateContainer(); 
 								end);
-	PREP_UnlockContainer.showLikeButton:SetScript("OnClick", function(self)
-									PREP_UnlockContainer.display = DISPLAY_LIKE;
-									PREP_UnlockContainer.CurrentPage = 1;
-									PREP_ShowUnlockedContent(); 
+	PREP_PlayerMetContainer.showLikeButton:SetScript("OnClick", function(self)
+									PREP_PlayerMetContainer.display = DISPLAY_LIKE;
+									PREP_PlayerMetContainer.CurrentPage = 1;
+									PREP_UpdateContainer(); 
 								end);
-	PREP_UnlockContainer.showDislikeButton:SetScript("OnClick", function(self)
-									PREP_UnlockContainer.display = DISPLAY_DISLIKE;
-									PREP_UnlockContainer.CurrentPage = 1;
-									PREP_ShowUnlockedContent(); 
+	PREP_PlayerMetContainer.showDislikeButton:SetScript("OnClick", function(self)
+									PREP_PlayerMetContainer.display = DISPLAY_DISLIKE;
+									PREP_PlayerMetContainer.CurrentPage = 1;
+									PREP_UpdateContainer(); 
 								end);
 	
-	PREP_UnlockContainer.CurrentPage = 1;
-	PREP_UnlockContainer.display = DISPLAY_MET;
+	PREP_PlayerMetContainer.CurrentPage = 1;
+	PREP_PlayerMetContainer.display = DISPLAY_MET;
 	
 	for i=1, PLAYERS_PER_PAGE do
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
 		button.upvote:SetScript("OnClick", function(self) ChangePlayerScore(self, 1) end);
 		button.downvote:SetScript("OnClick", function(self) ChangePlayerScore(self, -1) end);
 		button:SetScript("OnClick", function(self) 
-				PREP_UnlockContainer.display = DISPLAY_DETAILS;
+				PREP_PlayerMetContainer.display = DISPLAY_DETAILS;
 				ShowPlayerDetails(self.player);
-				PREP_ShowUnlockedContent();
+				PREP_UpdateContainer();
 			end);
 					
 		button.gui = AceGUI:Create("SimpleGroup");
@@ -512,12 +545,23 @@ function PREP_CreateContainer()
 	
 	PREP_PlayerDetails.gui:AddChild(PREP_PlayerDetails.editBox);
 	
-	SetPortraitToTexture(PREP_UnlockContainerPortrait, "Interface\\ICONS\\Achievement_Reputation_01");
-	PREP_UnlockContainerTitleText:SetText(addonName);
-	PREP_UnlockContainerCloseButton:SetScript("OnMouseUp", function() PREP_SpellBookTab:SetChecked(false); end );
+	SetPortraitToTexture(PREP_PlayerMetContainerPortrait, "Interface\\ICONS\\Achievement_Reputation_01");
+	PREP_PlayerMetContainerTitleText:SetText(addonName);
+	PREP_PlayerMetContainerCloseButton:SetScript("OnMouseUp", function() PREP_FriendsTab:SetChecked(false); end );
 	
-	ButtonFrameTemplate_HideButtonBar(PREP_UnlockContainer);
-	ButtonFrameTemplate_HideAttic(PREP_UnlockContainer);
+	ButtonFrameTemplate_HideButtonBar(PREP_PlayerMetContainer);
+	ButtonFrameTemplate_HideAttic(PREP_PlayerMetContainer);
+	
+	PREP_Options.format.date:SetScript("OnClick", function(self) 
+			SetDateTimeFormat(self:GetChecked(), PREP_Options.format.time:GetChecked());
+			ShowPlayerDetails(PREP_PlayerDetails.player);
+			_options.formatDate = self:GetChecked();
+		end );
+	PREP_Options.format.time:SetScript("OnClick", function(self) 
+			SetDateTimeFormat(PREP_Options.format.date:GetChecked(), self);
+			ShowPlayerDetails(PREP_PlayerDetails.player);
+			_options.formatTime = self:GetChecked();
+		end );
 	
 	PREP_UpdateNavigation()
 	
@@ -525,7 +569,7 @@ function PREP_CreateContainer()
 end
 
 local function ShowPopUp()
-	if (#_unlockedList == 0 or not PREP_UnlockContainerOptions.CBShowPopup:GetChecked() or InCombatLockdown()) then return; end
+	if (#_unlockedList == 0 or not PREP_Options.CBShowPopup:GetChecked() or InCombatLockdown()) then return; end
 	PREP_AlertPopup:Show();
 	PREP_AlertPopup:SetAlpha(1);
 	PREP_AlertPopup.text:SetText(#_unlockedList.." unread unlock" .. (#_unlockedList == 1 and "" or "s") .."!")
@@ -572,37 +616,40 @@ local function ToggleUnlockedPage(show)
 	if (show) then
 		ShowUnlockContainer();
 	else
-		PREP_UnlockContainer:Hide();
+		PREP_PlayerMetContainer:Hide();
 	end
 
 end
 
 local function CreateSpellbookIcon()
 
-	local L_PREP_SpellBookTab = CreateFrame("CheckButton", "PREP_SpellBookTab", SpellBookSideTabsFrame, "SpellBookSkillLineTabTemplate");
-	L_PREP_SpellBookTab:SetPoint("bottomleft", SpellBookSideTabsFrame, "bottomright", 0, 100);
-	L_PREP_SpellBookTab:Show();
+	local L_PREP_FriendsTab = CreateFrame("CheckButton", "PREP_FriendsTab", FriendsFrame, "PREP_FriendsButtonTemplate");
+	L_PREP_FriendsTab:SetPoint("TOPRIGHT", FriendsFrame, "BOTTOMRIGHT", -15, 1);
+	--file="Interface\AddOns\PlayerRep\Images\TabBackground"
+	L_PREP_FriendsTab.bg:SetTexture(CUSTOMPATH .. "TabBackground");
+	L_PREP_FriendsTab:Show();
 	-- overwrite scripts from template
-	L_PREP_SpellBookTab:SetScript("OnEnter", function(self) 
+	L_PREP_FriendsTab:SetScript("OnEnter", function(self) 
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0);
 		if InCombatLockdown() then
 			GameTooltip:SetText(TOOLTIP_COMBAT);
 		else
-			GameTooltip:SetText(TOOLTIP_SPELLBOOK_ICON);
+			GameTooltip:SetText(TOOLTIP_FRIEND_ICON);
 		end
 	end);
-	L_PREP_SpellBookTab:SetScript("OnClick", function() 
+	L_PREP_FriendsTab:SetScript("OnClick", function() 
 			if InCombatLockdown() then
-				L_PREP_SpellBookTab:SetChecked(false);
+				L_PREP_FriendsTab:SetChecked(false);
 			else
-				ToggleUnlockedPage(not PREP_UnlockContainer:IsShown()); 
+				ToggleUnlockedPage(not PREP_PlayerMetContainer:IsShown()); 
 			end
 		end);
 
-	L_PREP_SpellBookTab.icon = L_PREP_SpellBookTab:CreateTexture("PREP_SpellBookTabIcon");
-	L_PREP_SpellBookTab.icon:SetPoint("center", L_PREP_SpellBookTab);
-	L_PREP_SpellBookTab.icon:SetSize(32, 32);
-	L_PREP_SpellBookTab.icon:SetTexture("Interface/ICONS/Achievement_Reputation_01");
+	L_PREP_FriendsTab.icon = L_PREP_FriendsTab:CreateTexture("PREP_FriendsTabIcon");
+	L_PREP_FriendsTab.icon:SetPoint("center", L_PREP_FriendsTab, "center", 0, 1);
+	L_PREP_FriendsTab.icon:SetSize(32, 32);
+	L_PREP_FriendsTab.icon:SetTexture("Interface/ICONS/Achievement_Reputation_01");
+	--L_PREP_FriendsTab.icon:Hide();
 	
 	
 end
@@ -634,7 +681,7 @@ end
 
 local function GetPlayersToDisplay()
 	local temp = {};
-	if PREP_UnlockContainer.display == DISPLAY_MET then
+	if PREP_PlayerMetContainer.display == DISPLAY_MET then
 		local currentTime = time();
 		for k, player in pairs(_playersMet) do
 			if(currentTime - player.latestStamp < SAVE_TIME) then
@@ -643,13 +690,13 @@ local function GetPlayersToDisplay()
 				break;
 			end
 		end
-	elseif PREP_UnlockContainer.display == DISPLAY_LIKE then
+	elseif PREP_PlayerMetContainer.display == DISPLAY_LIKE then
 		for k, player in pairs(_playersMet) do
 			if (player.score > 0) then
 				table.insert(temp, player);
 			end
 		end
-	elseif PREP_UnlockContainer.display == DISPLAY_DISLIKE then
+	elseif PREP_PlayerMetContainer.display == DISPLAY_DISLIKE then
 		for k, player in pairs(_playersMet) do
 			if (player.score < 0) then
 				table.insert(temp, player);
@@ -673,10 +720,10 @@ local function DeleteOldNeutralPlayers()
 	end
 end
 
-function PREP_ShowUnlockedContent()
+function PREP_UpdateContainer()
 	
 	-- Only update when the main window is open
-	if (not PREP_UnlockContainer:IsShown()) then return; end
+	if (not PREP_PlayerMetContainer:IsShown()) then return; end
 	
 	ResetButtons();
 	SortPlayerList();
@@ -684,7 +731,7 @@ function PREP_ShowUnlockedContent()
 	UpdateShowButtons();
 	
 	PREP_PlayerDetails:Hide();
-	if PREP_UnlockContainer.display == DISPLAY_DETAILS then
+	if PREP_PlayerMetContainer.display == DISPLAY_DETAILS then
 		PREP_PlayerDetails:Show();
 	end
 	
@@ -695,7 +742,7 @@ function PREP_ShowUnlockedContent()
 	faction = faction == "Neutral" and "Horde" or faction;
 	local count = 1;
 	local player = nil;
-	local pageNr = PREP_UnlockContainer.CurrentPage;
+	local pageNr = PREP_PlayerMetContainer.CurrentPage;
 	local start = (pageNr-1) * PLAYERS_PER_PAGE;
 	local nrToShow = (#playersToShow-start) > PLAYERS_PER_PAGE and PLAYERS_PER_PAGE or #playersToShow - start;
 	for i = start + 1, (start + nrToShow) do
@@ -737,15 +784,15 @@ function PREP_ClearUnlockList()
 			table.remove(_playersMet, i);
 		end
 	end
-	PREP_ShowUnlockedContent();
+	PREP_UpdateContainer();
 end
 
-function PlayerRepAddon:OnInitialize()
-	self.db = LibStub("AceDB-3.0"):New("AceDBPlayerDB", _defaults);
+function PlayerRep:OnInitialize()
+	self.db = LibStub("AceDB-3.0"):New("PrepDB", defaults, true);
 end
 
-function PlayerRepAddon:OnEnable()
-
+function PlayerRep:OnEnable()
+--[[
 	local currentTime = time();
 	for k, player in ipairs(self.db.global.playersMet) do
 		if player.score ~= 0 or currentTime - player.latestStamp < SAVE_TIME then
@@ -756,16 +803,11 @@ function PlayerRepAddon:OnEnable()
 		end
 	end
 
-	--[[
-	_priceHistory = self.db.global.history
-	_option_Use24h = self.db.global.use24h
-	_lifetimeHighest = self.db.global.lifetimeHighest
-	_lifetimeLowest = self.db.global.lifetimeLowest
-	if self.db.global.isShown then
-		TokenChart_Container:Show()
-	end
+	PREP_Options.format.date:SetChecked(PlayerRep.db.global.options.formatDate);
+	PREP_Options.format.time:SetChecked(PlayerRep.db.global.options.formatTime);
 	
-	UpdateHistory()
+	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
+	
 	]]--
 end
 
@@ -786,7 +828,7 @@ end
 
 function PREP_LoadFrame:PLAYER_REGEN_DISABLED()
 	PREP_AlertPopup:Hide();
-	PREP_UnlockContainer:Hide();
+	PREP_PlayerMetContainer:Hide();
 end
 
 function PREP_LoadFrame:PLAYER_REGEN_ENABLED()
@@ -865,7 +907,7 @@ local function AddPlayerToList(unit)
 	
 	table.insert(_newGroup, temp);
 	
-	PREP_ShowUnlockedContent();
+	PREP_UpdateContainer();
 end
 
 local function AddInstance()
@@ -895,9 +937,11 @@ function PREP_LoadFrame:GROUP_ROSTER_UPDATE()
 end
 
 function PREP_LoadFrame:PLAYER_LOGOUT(loadedAddon)
+	--PlayerRep.db.global.playersMet = _playersMet;
+	PlayerRep.db.global.options.formatDate = PREP_Options.format.date:GetChecked();
+	PlayerRep.db.global.options.formatTime = PREP_Options.format.time:GetChecked();
+	
 	PREP_ShowHelpUnlocks(false);
-	PlayerRepAddon.db.global.playersMet = _playersMet;
-
 end
 
 function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
@@ -905,16 +949,34 @@ function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
 	
 	PREP_LoadFrame:UnregisterEvent("ADDON_LOADED")
 	
-	SetDateTimeFormat(true, true);
+	
 	PREP_CreateContainer();
+	SetDateTimeFormat(false, false);
 	PREP_CreatePopup()
 	CreateSpellbookIcon();
 	
-	_help:Initialise(PREP_UnlockContainer, _helpPlate);
+	_help:Initialise(PREP_PlayerMetContainer, _helpPlate);
 	
-	if (PlayerRepAddon.db.global.playersMet == nil) then
-		PlayerRepAddon.db.global.playersMet = _playersMet;
+	
+	local currentTime = time();
+	for k, player in ipairs(PlayerRep.db.global.playersMet) do
+		if player.score ~= 0 or currentTime - player.latestStamp < SAVE_TIME then
+			if (player.score == nil) then
+				player.score = 0;
+			end
+			table.insert(_playersMet, player);
+		end
 	end
+	PlayerRep.db.global.playersMet = _playersMet;
+	
+	_options.formatDate = PlayerRep.db.global.options.formatDate;
+	_options.formatTime = PlayerRep.db.global.options.formatTime;
+	PlayerRep.db.global.options = _options;
+
+	PREP_Options.format.date:SetChecked(_options.formatDate);
+	PREP_Options.format.time:SetChecked(_options.formatTime);
+	
+	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
 	
 end
 
@@ -926,12 +988,17 @@ SLASH_WIPSLASH1 = '/wip';
 local function slashcmd(msg, editbox)
 	if msg == 'options' then
 		ShowUnlockContainer();
-		PREP_UnlockContainerOptions:Show();
+		PREP_Options:Show();
 	elseif msg == "t" then
 		AddPlayerToList("target");
 	elseif msg == "db" then	
-		print(_fuck);
-		--PlayerRepAddon.db.global.playersMet = _playersMet;
+		print(#PlayerRep.db.global.playersMet);
+		print(PlayerRep.db.global);
+		print(PlayerRep.db.global.options);
+		print(PlayerRep.db.global.options.formatDate);
+		print(PlayerRep.db.global.options.formatTime);
+		PlayerRep.db.global.playersMet = _playersMet;
+		print(#PlayerRep.db.global.playersMet);
 	elseif msg == "c" then
 		print("Printing List");
 		for k1, player in ipairs(_playersMet) do
