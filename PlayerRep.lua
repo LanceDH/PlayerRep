@@ -225,6 +225,7 @@ end
 local function Popup_OnClick(self, button)
 	if(button == "LeftButton") then
 		ShowUnlockContainer();
+		
 	end
 	self:Hide();
 end
@@ -237,8 +238,10 @@ local function ToggleOptionFrame()
 
 	if (PREP_Options:IsShown()) then
 		PREP_Options:Hide();
+		PREP_AlertPopup:Hide();
 	else
 		PREP_Options:Show();
+		PREP_AlertPopup:Show();
 	end
 
 end
@@ -467,6 +470,9 @@ function PREP_CreateContainer()
 	
 	PREP_PlayerMetContainer.CurrentPage = 1;
 	PREP_PlayerMetContainer.display = DISPLAY_MET;
+
+	--PREP_PlayerMetContainerInsetBg:Hide();
+	--PREP_PlayerMetContainerBg:Hide();
 	
 	for i=1, PLAYERS_PER_PAGE do
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
@@ -568,11 +574,12 @@ function PREP_CreateContainer()
 	return L_BGS_ContainerBG
 end
 
-local function ShowPopUp()
-	if (#_unlockedList == 0 or not PREP_Options.CBShowPopup:GetChecked() or InCombatLockdown()) then return; end
+local function ShowPopUp(liked, disliked)
+	--if (#_unlockedList == 0 or not PREP_Options.CBShowPopup:GetChecked() or InCombatLockdown()) then return; end
 	PREP_AlertPopup:Show();
 	PREP_AlertPopup:SetAlpha(1);
-	PREP_AlertPopup.text:SetText(#_unlockedList.." unread unlock" .. (#_unlockedList == 1 and "" or "s") .."!")
+	PREP_AlertPopup.liked:SetText(liked);
+	PREP_AlertPopup.disliked:SetText(disliked);
 end
 
 local function CreatePopupAnimation(self)
@@ -581,13 +588,13 @@ local function CreatePopupAnimation(self)
 	self.animationA.alpha = self.animationA:CreateAnimation("Alpha");
 	self.animationA.alpha:SetChange(-1);
 	self.animationA.alpha:SetSmoothing("IN");
-	self.animationB = self:CreateAnimationGroup();
+	self.animationB = self.highlight:CreateAnimationGroup();
 	self.animationB.alpha = self.animationB:CreateAnimation("Alpha");
 	self.animationB.alpha:SetChange(-1);
 	self.animationB.alpha:SetSmoothing("OUT");
 	
 	self.animationA:SetScript("OnFinished", function() self.animationB:Play(); end);
-	self.animationB:SetScript("OnFinished", function() self:Hide(); end);
+	self.animationB:SetScript("OnFinished", function() self.highlight:Hide(); end);
 end
 
 local function PlayPopupAnimation(self)
@@ -595,9 +602,34 @@ local function PlayPopupAnimation(self)
 	if not self.animationA then
 		CreatePopupAnimation(self)
 	end
-	self.animationA.alpha:SetDuration(0.3);
+	self.animationA.alpha:SetDuration(0.2);
 	self.animationB.alpha:SetDuration(0.3);
 	self.animationA:Play(true);
+end
+
+local function CreateHideAnimation(self)
+	-- create flashing animation to highlight popup
+	self.animationHide = self:CreateAnimationGroup();
+	self.animationHide.alpha = self.animationHide:CreateAnimation("Alpha");
+	self.animationHide.alpha:SetChange(-1);
+	self.animationHide.alpha:SetFromAlpha(0);
+	self.animationHide.alpha:SetToAlpha(1);
+	self.animationHide.alpha:SetSmoothing("NONE");
+
+	self.animationHide:SetScript("OnFinished", function()
+			self:Hide();
+			PREP_AlertPopup.showTime = 0;
+		end);
+end
+
+local function PlayHideAnimation(self)
+	self:Show();
+	if not self.animationHide then
+		CreateHideAnimation(self)
+	end
+	self.animationHide.alpha:SetDuration(0.5);
+	self.animationHide:Play(true);
+	
 end
 
 local function PREP_CreatePopup()
@@ -605,8 +637,29 @@ local function PREP_CreatePopup()
 	PREP_AlertPopup:RegisterForDrag("LeftButton");
 	PREP_AlertPopup:SetScript("OnDragStart", PREP_AlertPopup.StartMoving );
 	PREP_AlertPopup:SetScript("OnDragStop", PREP_AlertPopup.StopMovingOrSizing);
-	PREP_AlertPopup:SetScript("OnShow", function(self) PlayPopupAnimation(self.highlight) end );
+	PREP_AlertPopup:SetScript("OnShow", function(self) 
+			PlayPopupAnimation(self);
+			self.highlight:Show();
+			self.highlight:SetAlpha(1);
+		end );
+	
+	--PREP_AlertPopup:SetScript("OnHide", function(self) 
+	--		PlayHideAnimation(PREP_AlertPopup);
+	--	end );
+	
+	PREP_AlertPopup.showTime = 0;
+	
 	PREP_AlertPopup:SetScript("OnClick", function(self, button) Popup_OnClick(self, button);end );
+	PREP_AlertPopup:SetScript("OnUpdate", function(self, elapsed) 
+			if (PREP_AlertPopup:IsShown() and not PREP_Options:IsShown()) then
+				PREP_AlertPopup.showTime = PREP_AlertPopup.showTime + elapsed;
+				if (PREP_AlertPopup.showTime >= 5) then
+					PREP_AlertPopup.showTime = -5;
+					PlayHideAnimation(self);
+				end
+			end
+		end );
+	
 	PREP_AlertPopup:RegisterForClicks("LeftButtonUp", "RightButtonUp");
 end
 
@@ -862,15 +915,29 @@ end
 
 local function CheckForNowPlayers()
 	local count = 0;
+	local liked = 0;
+	local disliked = 0;
+	
+	local playerSave = nil ;
+	
 	for k, player in ipairs(_newGroup) do
 		if (not IsInCurrentGroup(player.name)) then
 			count = count + 1;
-			print(player.name .. " is new.");
+			playerSave = GetPlayerSave(player.name);
+			if playerSave.score == 1 then
+				liked = liked + 1;
+			elseif playerSave.score == -1 then
+				disliked = disliked + 1;
+			end
 		end
 	end
 	
+	if liked > 0 or disliked > 0 then
+		ShowPopUp(liked, disliked);
+	end
+	
 	if count == 0 then
-		print("No new players");
+		--print("No new players");
 	end
 	
 	_currentGroup = {};
@@ -911,7 +978,6 @@ local function AddPlayerToList(unit)
 end
 
 local function AddInstance()
-	print("Adding group");
 	local num = GetNumGroupMembers()-1;
 	if IsInRaid() then
 		num = num + 1;
@@ -938,10 +1004,10 @@ end
 
 function PREP_LoadFrame:PLAYER_LOGOUT(loadedAddon)
 	--PlayerRep.db.global.playersMet = _playersMet;
-	PlayerRep.db.global.options.formatDate = PREP_Options.format.date:GetChecked();
-	PlayerRep.db.global.options.formatTime = PREP_Options.format.time:GetChecked();
+	--PlayerRep.db.global.options.formatDate = PREP_Options.format.date:GetChecked();
+	--PlayerRep.db.global.options.formatTime = PREP_Options.format.time:GetChecked();
 	
-	PREP_ShowHelpUnlocks(false);
+	--PREP_ShowHelpUnlocks(false);
 end
 
 function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
@@ -984,7 +1050,7 @@ end
 -- Slash Commands
 ----------------------------------------
 
-SLASH_WIPSLASH1 = '/wip';
+SLASH_WIPSLASH1 = '/prep';
 local function slashcmd(msg, editbox)
 	if msg == 'options' then
 		ShowUnlockContainer();
@@ -992,13 +1058,7 @@ local function slashcmd(msg, editbox)
 	elseif msg == "t" then
 		AddPlayerToList("target");
 	elseif msg == "db" then	
-		print(#PlayerRep.db.global.playersMet);
-		print(PlayerRep.db.global);
-		print(PlayerRep.db.global.options);
-		print(PlayerRep.db.global.options.formatDate);
-		print(PlayerRep.db.global.options.formatTime);
-		PlayerRep.db.global.playersMet = _playersMet;
-		print(#PlayerRep.db.global.playersMet);
+
 	elseif msg == "c" then
 		print("Printing List");
 		for k1, player in ipairs(_playersMet) do

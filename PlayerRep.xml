@@ -934,6 +934,7 @@
 					</OnShow>
 					<OnHide>
 						PREP_OptionsFrame_EnableBack(true);
+						PREP_AlertPopup:Hide();
 					</OnHide>
 					
 				</Scripts>
@@ -962,40 +963,64 @@
 
 	<Button name="PREP_AlertPopup" toplevel="true" movable="true" enableMouse="true" inherits="SecureFrameTemplate" hidden="true" parent="UIParent" frameStrata="LOW">
 		<Size>
-			<AbsDimension x="250" y="68"/>
+			<AbsDimension x="90" y="42"/>
 		</Size>
 		<Layers>
 			<Layer level="Background">
 
-				<Texture file="Interface\ACHIEVEMENTFRAME\UI-Achievement-Alert-Background" parentKey="bg">
+				<Texture file="Interface\Garrison\GarrisonMissionUI2" parentKey="bg">
 					<Anchors>
-						<Anchor point="topleft"/>
-						<Anchor point="bottomright"/>
+						<Anchor point="TOPLEFT"/>
+						<Anchor point="BOTTOMRIGHT"/>
 					</Anchors>
-					<TexCoords left="0" right="0.605" top="0" bottom="0.684"/>
+					<TexCoords left="0.436" right="0.576" top="0.763" bottom="0.819"/>
 				</Texture>
 			</Layer>
 			
 			<Layer level="Artwork">
-				<Texture file="Interface\ICONS\Spell_Holy_SurgeOfLight" name="$parentIcon" parentKey="icon">
+				<Texture file="Interface\ICONS\Achievement_Reputation_01" name="$parentIcon" parentKey="icon">
 					<Size x="34" y="34"/>
 					<Anchors>
-						<Anchor point="left" x="12" y="-2"/>
+						<Anchor point="left" x="4" y="-1"/>
 					</Anchors>
 				</Texture>
-				<FontString name="$parentText" inherits="GameFontNormal" justifyH="left" justifyV="MIDDLE" parentKey="text" text="X unread unlocks!">
+				
+				<Texture name="$parentIconLiked" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" hidden="false">
+					<Color r="0" g="0.8" b="0" a="1"/>
+					<Size x="25"  y="25"/>
+					<Anchors>
+						<Anchor point="LEFT" relativePoint="LEFT" relativeTo="$parentIcon" x="35" y="10"/>
+					</Anchors>
+				</Texture>
+				<Texture name="$parentIconDisliked" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" hidden="false">
+					<Color r="0.8" g="0" b="0" a="1"/>
+					<Size x="25"  y="25"/>
+					<Anchors>
+						<Anchor point="LEFT" relativePoint="LEFT" relativeTo="$parentIcon" x="35" y="-10"/>
+					</Anchors>
+				</Texture>
+				
+				<FontString name="$parentTextLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="liked" text="123">
 					<Size>
-						<AbsDimension x="200" y="25"/>
+						<AbsDimension x="28" y="18"/>
 					</Size>
 					<Anchors>
-						<Anchor point="left" relativeTo="$parentIcon" relativePoint="right" x="25" y="2"/>
+						<Anchor point="LEFT" relativeTo="$parentIconLiked" relativePoint="RIGHT" x="-2"/>
+					</Anchors>
+				</FontString>
+				<FontString name="$parentTextDisLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="disliked" text="456">
+					<Size>
+						<AbsDimension x="28" y="18"/>
+					</Size>
+					<Anchors>
+						<Anchor point="LEFT" relativeTo="$parentIconDisliked" relativePoint="right" x="-2"/>
 					</Anchors>
 				</FontString>
 			</Layer>
 			
 			<Layer level="overlay">
 				<Texture file="Interface\ACHIEVEMENTFRAME\UI-Achievement-IconFrame" name="$parentIconBorder">
-					<Size x="55" y="55"/>
+					<Size x="50" y="50"/>
 					<Anchors>
 						<Anchor point="center" relativeTo="$parentIcon" x="0" y="0"/>
 					</Anchors>
@@ -1004,11 +1029,21 @@
 			</Layer>
 			
 			<Layer level="highlight">
-				<Texture file="Interface\PaperDollInfoFrame\UI-Character-Tab-Highlight-yellow" alphaMode="ADD">
+				<Texture file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar" alphaMode="ADD">
 					<Anchors>
-						<Anchor point="TOPLEFT" x="50" y="-15"/>
-						<Anchor point="BOTTOMRIGHT" x="-40" y="15"/>
+						<Anchor point="TOPLEFT" x="40" y="-3"/>
+						<Anchor point="BOTTOMRIGHT" x="-23" y="2"/>
 					</Anchors>
+					<TexCoords left="0" right="0.25" top="0.1" bottom="0.9"/>
+					<Color r="1" g="1" b="1" a="0.5"/>
+				</Texture>
+				<Texture file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar" alphaMode="ADD">
+					<Anchors>
+						<Anchor point="TOPLEFT" relativePoint="TOPRIGHT" x="-23" y="-3"/>
+						<Anchor point="BOTTOMRIGHT" x="-3" y="2"/>
+					</Anchors>
+					<TexCoords left="0.5" right="1" top="0.1" bottom="0.9"/>
+					<Color r="1" g="1" b="1" a="0.5"/>
 				</Texture>
 			</Layer>
 			
@@ -1017,8 +1052,8 @@
 		<Frames >
 			<Frame name="$parentHighlight" enableMouse="false" inherits="SecureFrameTemplate" hidden="false" parentKey="highlight" frameStrata="LOW">
 				<Anchors>
-					<Anchor point="TOPLEFT" x="5" y="-15"/>
-					<Anchor point="BOTTOMRIGHT" x="-5" y="15"/>
+					<Anchor point="TOPLEFT" x="3" y="-4"/>
+					<Anchor point="BOTTOMRIGHT" x="-3" y="3"/>
 				</Anchors>
 				<Layers>
 					<Layer level="overlay">
