@@ -1,1 +1,10 @@
+v0.4
+- Added failsafe for unknowns
+- Changed met tab counter from neutral to all under save time
+- Added checkbox for pop-up
+- Added editbox to chance the time neutral players are saved
+- Added a searchbox to find players in the lists
+- Removed details page
+- Added tooltip with timestamps for players
+
 Need something to handle race change

@@ -54,7 +54,7 @@
 		</Size>
 		<Layers>
 			<Layer level="BACKGROUND">
-				<Texture name="$parentBackground" file="Interface\QUESTFRAME\UI-QuestItemNameFrame" hidden="false">
+				<Texture name="$parentBackground" file="Interface\QUESTFRAME\UI-QuestItemNameFrame" parentKey="bg" hidden="false">
 					<TexCoords left="0.08" right="0.92" top="0.17" bottom="0.82"/>
 					<Anchors>
 						<Anchor point="TOPLEFT" relativePoint="TOPLEFT"/>
@@ -179,6 +179,79 @@
 				</FontString>
 			</Layer>
 		</Layers>
+		
+		<Frames>
+		<Button name="$parentUpvote" parentKey="upvote" >
+				<Size>
+					<AbsDimension x="15" y="15"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="2" />
+				</Anchors>
+				
+				<NormalTexture file="Interface\Buttons\Arrow-Up-Disabled" parentKey="texture"/>
+				<PushedTexture file="Interface\Buttons\Arrow-Up-Down"/>
+				<DisabledTexture file="Interface\Buttons\Arrow-Up-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\Arrow-Up-Up" alphaMode="ADD"/>
+				
+				<Scripts>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText("Like player");
+					</OnEnter>
+					<OnLeave>
+						GameTooltip:Hide();
+					</OnLeave>
+				</Scripts>
+			</Button>
+			
+			<Button name="$parentDownvote" parentKey="downvote" >
+				<Size>
+					<AbsDimension x="15" y="15"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="20" y="-5"/>
+				</Anchors>
+				
+				<NormalTexture file="Interface\Buttons\Arrow-Down-Disabled" parentKey="texture"/>
+				<PushedTexture file="Interface\Buttons\Arrow-Down-Down"/>
+				<DisabledTexture file="Interface\Buttons\Arrow-Down-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\Arrow-Down-Up" alphaMode="ADD"/>
+				
+				<Scripts>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText("Dislike player");
+					</OnEnter>
+					<OnLeave>
+						GameTooltip:Hide();
+					</OnLeave>
+				</Scripts>
+			</Button>
+			<Button name="$parentNote" parentKey="noteBtn" >
+				<Size>
+					<AbsDimension x="16" y="16"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parent02" relativePoint="BOTOMLEFT" x="0" y="-22"/>
+				</Anchors>
+				
+				<NormalTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled" parentKey="texture"/>
+				<PushedTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled"/>
+				<DisabledTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled"/>
+				<HighlightTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Up" alphaMode="ADD"/>
+				
+				<Scripts>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText("Set note");
+					</OnEnter>
+					<OnLeave>
+						GameTooltip:Hide();
+					</OnLeave>
+				</Scripts>
+			</Button>
+		</Frames>
 	</Button>
 	
 	<Button name="PREP_PlayerButtonTemplate" hidden="false" inherits="SecureFrameTemplate" virtual="true">
@@ -331,154 +404,6 @@
 		</Frames>
 	</Button>
 	
-	<CheckButton name="PREP_UnlockButtonTemplate" hidden="true" inherits="SecureFrameTemplate" virtual="true">
-		<Size>
-			<AbsDimension x="37" y="37"/>
-		</Size>
-		<Layers>
-			<Layer level="BACKGROUND">
-				<Texture name="$parentBackground" inherits="Spellbook-EmptySlot" parentKey="EmptySlot">
-					<Anchors>
-						<Anchor point="CENTER"/>
-					</Anchors>
-				</Texture>
-				<Texture name="$parentTextBackground" inherits="Spellbook-TextBackground" parentKey="TextBackground">
-					<size x="300" y="37"/>
-					<Anchors>
-						<Anchor point="TOPLEFT" relativeTo="$parentBackground" relativePoint="TOPRIGHT" x="-5" y="-5"/>
-					</Anchors>
-				</Texture>
-				<Texture name="$parentTextBackground2" inherits="Spellbook-TextBackground" parentKey="TextBackground2">
-					<size x="300" y="37"/>
-					<Anchors>
-						<Anchor point="TOPLEFT" relativeTo="$parentBackground" relativePoint="TOPRIGHT" x="-5" y="-5"/>
-					</Anchors>
-				</Texture>
-				
-				<Texture name="$parentDigitBG" inherits="PREP_DigitBGTemplate" parentKey="DigitBg">
-					<Anchors>
-						<Anchor point="topright" relativeTo="$parent" relativePoint="topleft" x="5"/>
-					</Anchors>
-				</Texture>
-				
-			</Layer>
-			<Layer level="BORDER">
-				<Texture name="$parentIconTextureBg" setAllPoints="true" hidden="true" parentKey="IconTextureBg">
-					<Color r="0.40" g="0.20" b="0"/>
-				</Texture>
-			</Layer>
-			<Layer level="ARTWORK">
-				<Texture name="$parentIconTexture" setAllPoints="true" hidden="true" parentKey="IconTexture"/>
-				<FontString name="$parentSpellName" inherits="GameFontNormal" maxLines="3" hidden="false" justifyH="LEFT" parentKey="SpellName">
-					<Size>
-						<AbsDimension x="225" y="0"/>
-					</Size>
-					<Anchors>
-						<Anchor point="LEFT" relativePoint="RIGHT">
-							<Offset>
-								<AbsDimension x="8" y="6"/>
-							</Offset>
-						</Anchor>
-					</Anchors>
-				</FontString>
-				
-				
-				<FontString name="$parentSubSpellName" inherits="GameFontBlackSmall" hidden="false" justifyH="LEFT" parentKey="SpellSubName">
-					<Anchors>
-						<Anchor point="TOPLEFT" relativeTo="$parentSpellName" relativePoint="BOTTOMLEFT">
-							<Offset>
-								<AbsDimension x="0" y="-5"/>
-							</Offset>
-						</Anchor>
-					</Anchors>
-				</FontString>
-
-				<Texture name="$parentDigit3" inherits="PREP_DigitTemplate" parentKey="Digit1">
-					<Anchors>
-						<Anchor point="right" relativeTo="$parent" relativePoint="left" x="-20" y="-3"/>
-					</Anchors>
-				</Texture>
-				<Texture name="$parentDigit2" inherits="PREP_DigitTemplate" parentKey="Digit2">
-					<Anchors>
-						<Anchor point="right" relativeTo="$parentDigit3" relativePoint="left"/>
-					</Anchors>
-				</Texture>
-				<Texture name="$parentDigit1" inherits="PREP_DigitTemplate" parentKey="Digit3">
-					<Anchors>
-						<Anchor point="right" relativeTo="$parentDigit2" relativePoint="left"/>
-					</Anchors>
-				</Texture>
-
-			</Layer>
-			<Layer level="OVERLAY" textureSubLevel="-1">
-				<Texture name="$parentSlotFrame" inherits="Spellbook-SlotFrame" parentKey="SlotFrame">
-					<Anchors>
-						<Anchor point="CENTER" x="1.5"/>
-					</Anchors>
-				</Texture>
-				<Texture name="$parentUnlearnedSlotFrame" inherits="Spellbook-UnlearnedSlot" hidden="true" parentKey="UnlearnedFrame">
-					<Anchors>
-						<Anchor point="CENTER" x="1.5" y="-3"/>
-					</Anchors>
-				</Texture>
-				<Texture name="$parentTrainSlotFrame" inherits="Spellbook-TrainSlot" hidden="true" parentKey="TrainFrame">
-					<Anchors>
-						<Anchor point="TOPLEFT" x="-35" y="35"/>
-					</Anchors>
-				</Texture>
-				
-				<Texture name="$parentNewTextBG" file="Interface\COMMON\NameShadow" hidden="false" parentKey="NewTextBG">
-					<Size y="20"/>
-					<Anchors>
-						<Anchor point="BOTTOMRIGHT"/>
-						<Anchor point="BOTTOMLEFT"/>
-					</Anchors>
-					<TexCoords left="0.05" right="0.95" top="1" bottom="0"/>
-				</Texture>
-				<FontString name="$parentNewText" inherits="GameFontNormalSmall" hidden="false" justifyH="CENTER" parentKey="NewText" text=" New! ">
-					<Anchors>
-						<Anchor point="BOTTOMRIGHT" relativeTo="$parent" relativePoint="BOTTOMRIGHT">
-							<Offset>
-								<AbsDimension x="0" y="2"/>
-							</Offset>
-						</Anchor>
-					</Anchors>
-				</FontString>
-				
-				
-			</Layer>
-			<Layer level="BACKGROUND" textureSubLevel="1">
-				<Texture name="$parentTrainTextBackground" inherits="Spellbook-TrainTextBackground" parentKey="TrainTextBackground" hidden="true">
-					<Anchors>
-						<Anchor point="TOPLEFT" relativeTo="$parentTrainSlotFrame" relativePoint="TOPRIGHT" x="0" y="-12"/>
-					</Anchors>
-				</Texture>
-			</Layer>
-		</Layers>
-		
-		<Scripts>
-			<OnClick>
-				PREP_Unlockbutton_OnClick(self, button);
-			</OnClick>
-			<OnEnter>
-				PREP_UnlockButton_OnEnter(self, motion);
-			</OnEnter>
-			<OnLeave>
-				GameTooltip:Hide();
-			</OnLeave>
-			<OnDragStart>
-				if (self.unlockType == "spell") then
-					PickupSpell(self.unlockId);
-				end
-			</OnDragStart>
-		</Scripts>
-		
-		<PushedTexture file="Interface\Buttons\UI-Quickslot-Depress"/>
-		<HighlightTexture name="$parentHighlight" file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD"/>
-		<CheckedTexture file="Interface\Buttons\CheckButtonHilight" alphaMode="ADD"/>
-	</CheckButton>
-	
-
 	<Frame name="PREP_PlayerMetContainer" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" inherits="ButtonFrameTemplate" frameStrata="MEDIUM">
 		<Size>
 			<AbsDimension x="450" y="525"/>
@@ -492,6 +417,14 @@
 						<Anchor point="bottomright" x="-7" y="0"/>
 					</Anchors>
 					<TexCoords left="0" right="0.7617" top="0" bottom="0.859"/>
+				</Texture>
+			</Layer>
+			<Layer level="ARTWORK">
+				<Texture file="Interface\MINIMAP\TRACKING\None" parentKey="searchIcon">
+					<Size x="20" y="20"/>
+					<Anchors>
+						<Anchor point="TOP" relativePoint="TOP" x="-65" y="-65"/>
+					</Anchors>
 				</Texture>
 			</Layer>
 		</Layers>
@@ -533,9 +466,9 @@
 						GameTooltip:Hide();
 					</OnLeave>
 				</Scripts>
-				<NormalTexture file="Interface\Buttons\CancelButton-Up"/>
+				<NormalTexture file="Interface\Buttons\CancelButton-Up" parentKey="normal"/>
 				<PushedTexture file="Interface\Buttons\CancelButton-Down"/>
-				<DisabledTexture file="Interface\Buttons\CancelButton-Disabled"/>
+				<DisabledTexture file="Interface\Buttons\CancelButton-Disabled"  parentKey="disabled"/>
 				<HighlightTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Highlight" alphaMode="ADD"/>
 			</Button>
 			
@@ -583,7 +516,7 @@
 				
 				<Layers>
 					<Layer level="ARTWORK">
-						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-ChatInviteIcon" hidden="false">
+						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-ChatInviteIcon" parentKey="icon" hidden="false">
 							<Size x="25"  y="25"/>
 							<Anchors>
 								<Anchor point="LEFT" relativePoint="LEFT" x="3"/>
@@ -610,7 +543,7 @@
 				
 				<Layers>
 					<Layer level="ARTWORK">
-						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" hidden="false">
+						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" parentKey="icon" hidden="false">
 							<Color r="0" g="0.8" b="0" a="1"/>
 							<Size x="25"  y="25"/>
 							<Anchors>
@@ -638,7 +571,7 @@
 				
 				<Layers>
 					<Layer level="ARTWORK">
-						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" hidden="false">
+						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" parentKey="icon" hidden="false">
 							<Color r="0.8" g="0" b="0" a="1"/>
 							<Size x="25"  y="25"/>
 							<Anchors>
@@ -760,9 +693,9 @@
 								PREP_PrevPageButton_OnClick();
 							</OnClick>
 						</Scripts>
-						<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up"/>
+						<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Up" parentKey="normal"/>
 						<PushedTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Down"/>
-						<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"/>
+						<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-PrevPage-Disabled"  parentKey="disabled"/>
 						<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 					</Button>
 					<Button name="$parentNextPageButton" parentKey="Next">
@@ -781,9 +714,9 @@
 								PREP_NextPageButton_OnClick();
 							</OnClick>
 						</Scripts>
-						<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Up"/>
+						<NormalTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Up" parentKey="normal"/>
 						<PushedTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Down"/>
-						<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled"/>
+						<DisabledTexture file="Interface\Buttons\UI-SpellbookIcon-NextPage-Disabled" parentKey="disabled"/>
 						<HighlightTexture file="Interface\Buttons\UI-Common-MouseHilight" alphaMode="ADD"/>
 					</Button>
 				</Frames>
@@ -799,7 +732,7 @@
 			
 			<Frame name="PREP_Options" hidden="true" enableMouse="true" inherits="UIPanelDialogTemplate" frameStrata="HIGH">
 				<Size>
-					<AbsDimension x="325" y="165"/>
+					<AbsDimension x="325" y="205"/>
 				</Size>
 				
 				<Anchors>
@@ -816,13 +749,19 @@
 								<Anchor point="top" relativeTo="$parent" y="-5"/>
 							</Anchors>
 						</FontString>
+						<FontString name="$parentSaveTime" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="saveTimeText" text="12d 23h 59m 15s">
+							
+							<Anchors>
+								<Anchor point="TOPLEFT" x="135" y="-90"/>
+							</Anchors>
+						</FontString>
 					</Layer>
 				</Layers>
 				
 				<Frames>
-					<CheckButton name="$parentCBPopup" inherits="UICheckButtonTemplate" hidden="true" parentKey="CBShowPopup" checked="true">
+					<CheckButton name="$parentCBPopup" inherits="UICheckButtonTemplate" hidden="false" parentKey="showPopup" checked="true">
 						<Anchors>
-							<Anchor point="topleft" x="25" y="-40"/>
+							<Anchor point="topleft" x="25" y="-35"/>
 						</Anchors>
 						<Layers>
 							<Layer level="overlay">
@@ -839,7 +778,7 @@
 						<Scripts>
 							<OnEnter>
 								GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-								GameTooltip:SetText("Enable to make the popup window\n to show up every time you have\n new unread unlocks.");
+								GameTooltip:SetText("Show a popup every time\n someone joins your group\n who you liked or disliked.");
 							</OnEnter>
 							<OnLeave>
 								GameTooltip:Hide();
@@ -850,7 +789,7 @@
 					<Frame name="$parentFormats" hidden="false" inherits="InsetFrameTemplate" parentKey="format" frameStrata="HIGH">
 						<Size x="275" y="60"/>
 						<Anchors>
-							<Anchor point="topleft" relativeTo="$parentCBPopup" relativePoint="bottomleft" x="0" y="-5"/>
+							<Anchor point="topleft" relativeTo="$parentCBPopup" relativePoint="bottomleft" x="0" y="-50"/>
 						</Anchors>
 						
 						<Layers>
@@ -888,7 +827,7 @@
 								<Scripts>
 									<OnEnter>
 										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Show dates using mm/dd/yyyy rather than dd/mm/yyyy.");
+										GameTooltip:SetText("Show dates using mm/dd/yyyy\n rather than dd/mm/yyyy.");
 									</OnEnter>
 									<OnLeave>
 										GameTooltip:Hide();
@@ -1000,7 +939,7 @@
 					</Anchors>
 				</Texture>
 				
-				<FontString name="$parentTextLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="liked" text="123">
+				<FontString name="$parentTextLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="liked" text="0">
 					<Size>
 						<AbsDimension x="28" y="18"/>
 					</Size>
@@ -1008,7 +947,7 @@
 						<Anchor point="LEFT" relativeTo="$parentIconLiked" relativePoint="RIGHT" x="-2"/>
 					</Anchors>
 				</FontString>
-				<FontString name="$parentTextDisLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="disliked" text="456">
+				<FontString name="$parentTextDisLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="disliked" text="0">
 					<Size>
 						<AbsDimension x="28" y="18"/>
 					</Size>

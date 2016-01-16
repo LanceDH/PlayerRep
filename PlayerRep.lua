@@ -18,6 +18,8 @@ local defaults = {
 		options = {
 			formatDate = false;
 			formatTime = false;
+			showPopup = true;
+			saveTime = 1800;
 		}
 	}
 }
@@ -25,6 +27,8 @@ local defaults = {
 local _options = {
 			formatDate = false;
 			formatTime = false;
+			showPopup = true;
+			saveTime = 1800;
 		}
 
 local _playersMet = {};
@@ -52,8 +56,6 @@ local DISPLAY_MET = 0;
 local DISPLAY_LIKE = 1;
 local DISPLAY_DISLIKE = 2;
 local DISPLAY_DETAILS = 3;
-
-local SAVE_TIME = 1800;
 
 local UNLOCKTYPE_SPELL = "spell";
 local UNLOCKTYPE_TALENT = "talent";
@@ -91,17 +93,40 @@ local _helpPlate = {
 	[2] = { ButtonPos = { x = 340,	y = -30}, HighLightBox = { x = 60, y = -30, width = 335, height = 45 }, ToolTipDir = "DOWN", ToolTipText = HELP_INFO_TABS }
 }
 
+local function FormatSeconds(secs)
+	secs = tonumber(secs);
+	local text = "";
+	local t = date("!*t", secs);
+	t.day = t.day - 1;
+	if t.day > 0 then
+		text = text .. t.day .. "day ";
+	end
+	if t.hour > 0 then
+		text = text .. t.hour .. "hour ";
+	end
+	if t.min > 0 then
+		text = text .. t.min .. "min ";
+	end
+	if t.sec > 0 then
+		text = text .. t.sec .. "sec ";
+	end
+	
+	return text;
+end
+
 local function UpdateShowButtons()
 
 	local likeCount = 0;
 	local dislikeCount = 0;
 	local neutralCount = 0;
+	local now = time();
 	for k, player in ipairs(_playersMet) do
 		if player.score > 0 then
 			likeCount = likeCount + 1;
 		elseif player.score < 0 then
 			dislikeCount = dislikeCount + 1;
-		else
+		end
+		if now - player.latestStamp <= _options.saveTime then
 			neutralCount = neutralCount + 1;
 		end
 	end
@@ -254,6 +279,7 @@ function PREP_OptionsFrame_EnableBack(enabled)
 		color = 0.5;
 	end
 	
+	-- players
 	for i=1, PLAYERS_PER_PAGE do
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
 		button:EnableMouse(enabled);
@@ -274,9 +300,48 @@ function PREP_OptionsFrame_EnableBack(enabled)
 		end
 	end
 
+	-- tab buttons
+	PREP_PlayerMetContainer.showMetButton:EnableMouse(enabled);
+	PREP_PlayerMetContainer.showLikeButton:EnableMouse(enabled);
+	PREP_PlayerMetContainer.showDislikeButton:EnableMouse(enabled);
+	PREP_PlayerMetContainer.showMetButton.bg:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showLikeButton.bg:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showDislikeButton.bg:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showMetButton.icon:SetVertexColor(color, color, color, 1);
+	if enabled then
+		PREP_PlayerMetContainer.showLikeButton.icon:SetVertexColor(0, 0.8, 0, 1);
+		PREP_PlayerMetContainer.showDislikeButton.icon:SetVertexColor(0.8, 0, 0, 1);
+		
+		PREP_PlayerMetContainer.showMetButton.count:SetVertexColor(1.0, 0.82, 0, 1);
+		PREP_PlayerMetContainer.showLikeButton.count:SetVertexColor(1.0, 0.82, 0, 1);
+		PREP_PlayerMetContainer.showDislikeButton.count:SetVertexColor(1.0, 0.82, 0, 1);
+	else
+		PREP_PlayerMetContainer.showLikeButton.icon:SetVertexColor(0, 0.4, 0, 1);
+		PREP_PlayerMetContainer.showDislikeButton.icon:SetVertexColor(0.4, 0, 0, 1);
+		
+		PREP_PlayerMetContainer.showMetButton.count:SetVertexColor(0.5, 0.42, 0, 1);
+		PREP_PlayerMetContainer.showLikeButton.count:SetVertexColor(0.5, 0.42, 0, 1);
+		PREP_PlayerMetContainer.showDislikeButton.count:SetVertexColor(0.5, 0.42, 0, 1);
+	end
+	
+	-- search box
+	PREP_PlayerMetContainer.searchIcon:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.search.editbox:EnableMouse(enabled);
+	PREP_PlayerMetContainer.search.editbox.Left:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.search.editbox.Middle:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.search.editbox.Right:SetVertexColor(color, color, color, 1);
+	
+	
+	-- clear button
 	PREP_PlayerMetContainer.Clear:EnableMouse(enabled);
+	PREP_PlayerMetContainer.Clear.normal:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.Clear.disabled:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.Navigation.Prev:EnableMouse(enabled);
+	PREP_PlayerMetContainer.Navigation.Prev.normal:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.Navigation.Prev.disabled:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.Navigation.Next:EnableMouse(enabled);
+	PREP_PlayerMetContainer.Navigation.Next.normal:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.Navigation.Next.disabled:SetVertexColor(color, color, color, 1);
 	
 	PREP_PlayerMetContainer.bg:SetVertexColor(color, color, color, 1);
 	
@@ -419,6 +484,9 @@ local function ShowPlayerDetails(player)
 	PREP_PlayerDetails.stampFirst:SetText(date(_dateTimeFormat, player.firstStamp));
 	PREP_PlayerDetails.stampLast:SetText(date(_dateTimeFormat, player.latestStamp));
 	
+	PREP_PlayerDetails.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Disabled");
+	PREP_PlayerDetails.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Disabled");
+	
 	local faction = UnitFactionGroup("player");
 	faction = faction == "Neutral" and "Horde" or faction;
 	PREP_PlayerDetails.iconClass:SetTexture("Interface/ICONS/ClassIcon_" .. string.gsub(player.class, " ", ""));
@@ -430,10 +498,10 @@ local function ShowPlayerDetails(player)
 	PREP_PlayerDetails.scoreNegative:Hide();
 	if player.score > 0 then
 			PREP_PlayerDetails.scorePositive:Show();
-			--button.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Up");
+			PREP_PlayerDetails.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Up");
 		elseif player.score < 0 then
 			PREP_PlayerDetails.scoreNegative:Show();
-			--button.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Up");
+			PREP_PlayerDetails.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Up");
 		end
 	
 	PREP_PlayerDetails.editBox:SetText(player.note);
@@ -478,11 +546,23 @@ function PREP_CreateContainer()
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
 		button.upvote:SetScript("OnClick", function(self) ChangePlayerScore(self, 1) end);
 		button.downvote:SetScript("OnClick", function(self) ChangePlayerScore(self, -1) end);
-		button:SetScript("OnClick", function(self) 
-				PREP_PlayerMetContainer.display = DISPLAY_DETAILS;
-				ShowPlayerDetails(self.player);
-				PREP_UpdateContainer();
+		
+		button:SetScript("OnEnter", function(self) 
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+				--GameTooltip:SetText(self.player.name .. "\nSeen First: |cFFFFFFFF" .. date(_dateTimeFormat, self.player.firstStamp) .. "|r\nSeen Last: |cFFFFFFFF" .. date(_dateTimeFormat, self.player.latestStamp) .."|r");
+				GameTooltip:SetText(self.player.name);
+				GameTooltip:AddDoubleLine("Seen First", date(_dateTimeFormat, self.player.firstStamp),1 ,1 ,1 ,1 ,1 ,1);
+				GameTooltip:AddDoubleLine("Seen Last", date(_dateTimeFormat, self.player.latestStamp),1 ,1 ,1 ,1 ,1 ,1);
+				GameTooltip:AddLine(self.player.note ,1 ,0.82 ,0 ,true);
+				GameTooltip:Show();
 			end);
+		button:SetScript("OnLeave", function(self) GameTooltip:Hide(); end);
+		
+		--button:SetScript("OnClick", function(self) 
+		--		PREP_PlayerMetContainer.display = DISPLAY_DETAILS;
+		--		ShowPlayerDetails(self.player);
+		--		PREP_UpdateContainer();
+		--	end);
 					
 		button.gui = AceGUI:Create("SimpleGroup");
 		button.gui:SetWidth(165);
@@ -521,35 +601,53 @@ function PREP_CreateContainer()
 			end);
 	end
 	
+	-- Note on player details
 	PREP_PlayerDetails.gui = AceGUI:Create("SimpleGroup");
-	PREP_PlayerDetails.gui:SetWidth(300);
+	PREP_PlayerDetails.gui:SetWidth(250);
 	PREP_PlayerDetails.gui:SetHeight(50);
 	PREP_PlayerDetails.gui:SetLayout("flow");
 	PREP_PlayerDetails.gui.frame:SetParent(PREP_PlayerDetails);
-	PREP_PlayerDetails.gui.frame:SetPoint("TOPLEFT", 0, -100);
-	
+	PREP_PlayerDetails.gui.frame:SetPoint("TOP", 25, -80);
+
 	PREP_PlayerDetails.editBox = AceGUI:Create("EditBox");
 	PREP_PlayerDetails.editBox:SetRelativeWidth(1);
 	PREP_PlayerDetails.editBox:SetLabel("");
-	PREP_PlayerDetails.editBox:SetText("Write note");
+	PREP_PlayerDetails.editBox:SetText("");
+	PREP_PlayerDetails.editBox:DisableButton(true);
 	PREP_PlayerDetails.editBox.editbox.Left:Hide();
+	PREP_PlayerDetails.editBox.editbox.Right:Hide();
 	PREP_PlayerDetails.editBox.editbox.Middle:Hide();
 	PREP_PlayerDetails.editBox.editbox:SetTextColor(0, 0, 0, 1);
 	PREP_PlayerDetails.editBox.editbox:SetShadowColor(0, 0, 0, 0);
-	PREP_PlayerDetails.editBox.editbox.Right:Hide();
-	PREP_PlayerDetails.editBox.editbox:SetFontObject("GameFontNormal");
-	PREP_PlayerDetails.editBox.editbox:EnableMouse(false);
+	
 	PREP_PlayerDetails.editBox:SetCallback("OnEnterPressed", function(__,__, value)
 			PREP_PlayerDetails.player.note = value;
 			PREP_PlayerDetails.editBox.editbox:SetCursorPosition(0);
 			PREP_PlayerDetails.editBox.editbox:EnableMouse(false);
 			PREP_PlayerDetails.editBox.editbox:ClearFocus();
 		end)
-	PREP_PlayerDetails.editBox.editbox:SetScript("OnEditFocusLost", function(self) 
-			PREP_PlayerDetails.editBox.editbox:EnableMouse(false);
-		end);
 	
 	PREP_PlayerDetails.gui:AddChild(PREP_PlayerDetails.editBox);
+	
+	-- Search
+	PREP_PlayerMetContainer.gui = AceGUI:Create("SimpleGroup");
+	PREP_PlayerMetContainer.gui:SetWidth(100);
+	PREP_PlayerMetContainer.gui:SetHeight(50);
+	PREP_PlayerMetContainer.gui:SetLayout("flow");
+	PREP_PlayerMetContainer.gui.frame:SetParent(PREP_PlayerMetContainer);
+	PREP_PlayerMetContainer.gui.frame:SetPoint("TOP", 0, -59);
+	
+	PREP_PlayerMetContainer.search = AceGUI:Create("EditBox");
+	PREP_PlayerMetContainer.search:SetRelativeWidth(1);
+	PREP_PlayerMetContainer.search:SetLabel("");
+	PREP_PlayerMetContainer.search:SetText("");
+	PREP_PlayerMetContainer.search:DisableButton(true);
+	PREP_PlayerMetContainer.search:SetCallback("OnTextChanged", function(__,__, value)
+			PREP_UpdateContainer();
+		end)
+
+	
+	PREP_PlayerMetContainer.gui:AddChild(PREP_PlayerMetContainer.search);
 	
 	SetPortraitToTexture(PREP_PlayerMetContainerPortrait, "Interface\\ICONS\\Achievement_Reputation_01");
 	PREP_PlayerMetContainerTitleText:SetText(addonName);
@@ -558,6 +656,43 @@ function PREP_CreateContainer()
 	ButtonFrameTemplate_HideButtonBar(PREP_PlayerMetContainer);
 	ButtonFrameTemplate_HideAttic(PREP_PlayerMetContainer);
 	
+	
+	-- Options savetime
+	PREP_Options.gui = AceGUI:Create("SimpleGroup");
+	PREP_Options.gui:SetWidth(100);
+	PREP_Options.gui:SetHeight(50);
+	PREP_Options.gui:SetLayout("flow");
+	PREP_Options.gui.frame:SetParent(PREP_Options);
+	PREP_Options.gui.frame:SetPoint("TOPLEFT", PREP_Options.showPopup, "BOTTOMLEFT" ,  0, 5);
+		
+	PREP_Options.saveTime = AceGUI:Create("EditBox");
+	PREP_Options.saveTime:SetRelativeWidth(1);
+	PREP_Options.saveTime:SetLabel("Save time");
+	PREP_Options.saveTime:SetText("");
+	PREP_Options.saveTime:DisableButton(true);
+	PREP_Options.saveTime:SetCallback("OnEnterPressed", function(__,__, value)
+			if tonumber(value) ~= nil then
+				_options.saveTime = tonumber(value);
+				PREP_Options.saveTimeText:SetText(FormatSeconds(_options.saveTime)); 
+			else
+				PREP_Options.saveTime:SetText(_options.saveTime);
+			end;
+			
+			--PREP_UpdateContainer();
+		end)
+	PREP_Options.saveTime.editbox:SetScript("OnEnter", function(self) 
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+			GameTooltip:SetText("The time neutral players will\n be saved for (in sec).");
+		end )
+	PREP_Options.saveTime.editbox:SetScript("OnLeave", function(self) 
+			GameTooltip:Hide();
+		end )
+		
+	PREP_Options.gui:AddChild(PREP_Options.saveTime);
+	
+	PREP_Options.showPopup:SetScript("OnClick", function(self) 
+			_options.showPopup = self:GetChecked();
+		end );
 	PREP_Options.format.date:SetScript("OnClick", function(self) 
 			SetDateTimeFormat(self:GetChecked(), PREP_Options.format.time:GetChecked());
 			ShowPlayerDetails(PREP_PlayerDetails.player);
@@ -568,14 +703,14 @@ function PREP_CreateContainer()
 			ShowPlayerDetails(PREP_PlayerDetails.player);
 			_options.formatTime = self:GetChecked();
 		end );
-	
+
 	PREP_UpdateNavigation()
 	
 	return L_BGS_ContainerBG
 end
 
 local function ShowPopUp(liked, disliked)
-	--if (#_unlockedList == 0 or not PREP_Options.CBShowPopup:GetChecked() or InCombatLockdown()) then return; end
+	if (not _options.showPopup) then return; end
 	PREP_AlertPopup:Show();
 	PREP_AlertPopup:SetAlpha(1);
 	PREP_AlertPopup.liked:SetText(liked);
@@ -732,12 +867,12 @@ local function SortPlayerList()
 	end);
 end
 
-local function GetPlayersToDisplay()
+local function GetPlayersToDisplay(search)
 	local temp = {};
 	if PREP_PlayerMetContainer.display == DISPLAY_MET then
 		local currentTime = time();
 		for k, player in pairs(_playersMet) do
-			if(currentTime - player.latestStamp < SAVE_TIME) then
+			if(currentTime - player.latestStamp < _options.saveTime) then
 				table.insert(temp, player);
 			else
 				break;
@@ -756,6 +891,17 @@ local function GetPlayersToDisplay()
 			end
 		end
 	end
+	
+	
+	if search ~= "" then
+		local searched = {};
+		for k, player in pairs(temp) do
+			if string.find(player.name:lower(), search:lower()) then
+				table.insert(searched, player);
+			end
+		end
+		return searched;
+	end
 		
 	return temp;
 end
@@ -763,7 +909,7 @@ end
 local function DeleteOldNeutralPlayers()
 	local currentTime = time();
 	for i=#_playersMet,1,-1 do
-		if currentTime - _playersMet[i].latestStamp > SAVE_TIME then
+		if currentTime - _playersMet[i].latestStamp > _options.saveTime then
 			if (_playersMet[i].score == 0) then
 				table.remove(_playersMet, i);
 			end
@@ -783,12 +929,14 @@ function PREP_UpdateContainer()
 	DeleteOldNeutralPlayers();
 	UpdateShowButtons();
 	
+	
+	
 	PREP_PlayerDetails:Hide();
 	if PREP_PlayerMetContainer.display == DISPLAY_DETAILS then
 		PREP_PlayerDetails:Show();
 	end
 	
-	local playersToShow = GetPlayersToDisplay();
+	local playersToShow = GetPlayersToDisplay(PREP_PlayerMetContainer.search:GetText());
 	
 	local faction = UnitFactionGroup("player");
 	-- change neutral panda to horde because looks left... also FOR THE HORDE!
@@ -827,69 +975,6 @@ function PREP_UpdateContainer()
 	
 	PREP_UpdateNavigation();
 
-end
-
-
-
-function PREP_ClearUnlockList()
-	for i=#_playersMet,1,-1 do
-		if _playersMet[i].score == 0 then
-			table.remove(_playersMet, i);
-		end
-	end
-	PREP_UpdateContainer();
-end
-
-function PlayerRep:OnInitialize()
-	self.db = LibStub("AceDB-3.0"):New("PrepDB", defaults, true);
-end
-
-function PlayerRep:OnEnable()
---[[
-	local currentTime = time();
-	for k, player in ipairs(self.db.global.playersMet) do
-		if player.score ~= 0 or currentTime - player.latestStamp < SAVE_TIME then
-			if (player.score == nil) then
-				player.score = 0;
-			end
-			table.insert(_playersMet, player);
-		end
-	end
-
-	PREP_Options.format.date:SetChecked(PlayerRep.db.global.options.formatDate);
-	PREP_Options.format.time:SetChecked(PlayerRep.db.global.options.formatTime);
-	
-	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
-	
-	]]--
-end
-
-
-
-local L_PREP_LoadFrame = CreateFrame("FRAME", "PREP_LoadFrame"); 
-PREP_LoadFrame:RegisterEvent("PLAYER_LEVEL_UP");
-PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
-PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_DISABLED");
-PREP_LoadFrame:RegisterEvent("ADDON_LOADED");
-PREP_LoadFrame:RegisterEvent("PLAYER_LOGOUT");
-PREP_LoadFrame:RegisterEvent("GROUP_JOINED");
-PREP_LoadFrame:RegisterEvent("GROUP_ROSTER_UPDATE");
-PREP_LoadFrame:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
-
-function PREP_LoadFrame:PLAYER_LEVEL_UP(level, hp, mp, talentPoints, strength, agility, stamina, intellect, spirit)
-end
-
-function PREP_LoadFrame:PLAYER_REGEN_DISABLED()
-	PREP_AlertPopup:Hide();
-	PREP_PlayerMetContainer:Hide();
-end
-
-function PREP_LoadFrame:PLAYER_REGEN_ENABLED()
-	
-	if _openedDuringCombat then
-		ShowUnlockContainer();
-		_openedDuringCombat = false;
-	end
 end
 
 local function GetPlayerSave(name)
@@ -954,6 +1039,8 @@ local function AddPlayerToList(unit)
 	-- add home realm if missing
 	
 	if temp.name == "Unknown" then
+		PREP_LoadFrame.time = 0;
+		PREP_LoadFrame.foundUnknown = true;
 		print("Found an unknown");
 	end
 	
@@ -994,6 +1081,82 @@ local function AddInstance()
 	CheckForNowPlayers(newGroup);
 end
 
+function PREP_ClearUnlockList()
+	for i=#_playersMet,1,-1 do
+		if _playersMet[i].score == 0 then
+			table.remove(_playersMet, i);
+		end
+	end
+	PREP_UpdateContainer();
+end
+
+function PlayerRep:OnInitialize()
+	self.db = LibStub("AceDB-3.0"):New("PrepDB", defaults, true);
+end
+
+function PlayerRep:OnEnable()
+--[[
+	local currentTime = time();
+	for k, player in ipairs(self.db.global.playersMet) do
+		if player.score ~= 0 or currentTime - player.latestStamp < _options.saveTime then
+			if (player.score == nil) then
+				player.score = 0;
+			end
+			table.insert(_playersMet, player);
+		end
+	end
+
+	PREP_Options.format.date:SetChecked(PlayerRep.db.global.options.formatDate);
+	PREP_Options.format.time:SetChecked(PlayerRep.db.global.options.formatTime);
+	
+	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
+	
+	]]--
+end
+
+
+
+local L_PREP_LoadFrame = CreateFrame("FRAME", "PREP_LoadFrame"); 
+PREP_LoadFrame:RegisterEvent("PLAYER_LEVEL_UP");
+PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
+PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_DISABLED");
+PREP_LoadFrame:RegisterEvent("ADDON_LOADED");
+PREP_LoadFrame:RegisterEvent("PLAYER_LOGOUT");
+PREP_LoadFrame:RegisterEvent("GROUP_JOINED");
+PREP_LoadFrame:RegisterEvent("GROUP_ROSTER_UPDATE");
+PREP_LoadFrame:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
+PREP_LoadFrame.time = 0;
+PREP_LoadFrame.foundUnknown = false;
+PREP_LoadFrame:SetScript("OnUpdate", function(self, elapsed)
+		if PREP_LoadFrame.foundUnknown then
+			PREP_LoadFrame.time = PREP_LoadFrame.time + elapsed;
+			if PREP_LoadFrame.time >= 1 then
+				print("Rechecking unknowns");
+				PREP_LoadFrame.time = 0;
+				PREP_LoadFrame.foundUnknown = false;
+				AddInstance();
+			end
+		end
+	end)
+
+function PREP_LoadFrame:PLAYER_LEVEL_UP(level, hp, mp, talentPoints, strength, agility, stamina, intellect, spirit)
+end
+
+function PREP_LoadFrame:PLAYER_REGEN_DISABLED()
+	PREP_AlertPopup:Hide();
+	PREP_PlayerMetContainer:Hide();
+end
+
+function PREP_LoadFrame:PLAYER_REGEN_ENABLED()
+	
+	if _openedDuringCombat then
+		ShowUnlockContainer();
+		_openedDuringCombat = false;
+	end
+end
+
+
+
 function PREP_LoadFrame:GROUP_JOINED()
 	AddInstance();
 end
@@ -1026,7 +1189,7 @@ function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
 	
 	local currentTime = time();
 	for k, player in ipairs(PlayerRep.db.global.playersMet) do
-		if player.score ~= 0 or currentTime - player.latestStamp < SAVE_TIME then
+		if player.score ~= 0 or currentTime - player.latestStamp < _options.saveTime then
 			if (player.score == nil) then
 				player.score = 0;
 			end
@@ -1037,10 +1200,15 @@ function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
 	
 	_options.formatDate = PlayerRep.db.global.options.formatDate;
 	_options.formatTime = PlayerRep.db.global.options.formatTime;
+	_options.showPopup = PlayerRep.db.global.options.showPopup;
+	_options.saveTime = PlayerRep.db.global.options.saveTime;
 	PlayerRep.db.global.options = _options;
 
 	PREP_Options.format.date:SetChecked(_options.formatDate);
 	PREP_Options.format.time:SetChecked(_options.formatTime);
+	PREP_Options.showPopup:SetChecked(_options.showPopup);
+	PREP_Options.saveTime:SetText(_options.saveTime);
+	PREP_Options.saveTimeText:SetText(FormatSeconds(_options.saveTime)); 
 	
 	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
 	
@@ -1056,17 +1224,14 @@ local function slashcmd(msg, editbox)
 		ShowUnlockContainer();
 		PREP_Options:Show();
 	elseif msg == "t" then
-		AddPlayerToList("target");
-	elseif msg == "db" then	
-
-	elseif msg == "c" then
-		print("Printing List");
-		for k1, player in ipairs(_playersMet) do
-			for k, v in pairs(player) do
-				print(k .. ": " .. v);
-			end
-			print("-----");
+		if UnitIsPlayer("target") then
+			AddPlayerToList("target");
 		end
+	elseif msg == "g" then
+		print(FormatSeconds(0));
+		print(FormatSeconds(1800));
+		print(FormatSeconds(86520));
+		print(FormatSeconds(6541843));
 	else
 		ShowUnlockContainer();
 	end
