@@ -7,15 +7,6 @@
 	<Include file="libs\AceGUI-3.0\AceGUI-3.0.xml"/>
 	<Include file="libs\AceDB-3.0\AceDB-3.0.xml"/>
 
-	<Texture name="PREP_DigitTemplate" file="Interface\UNITPOWERBARALT\Alliance_Counter_Numbers" virtual="true" >
-		<Size x="17" y="37"/>	
-		<TexCoords left="0.135" right="0.24" top="0" bottom="0.5"/>	
-	</Texture>
-	<Texture name="PREP_DigitBGTemplate" file="Interface\DialogFrame\UI-DialogBox-Gold-Dragon" virtual="true" >
-		<Size x="60" y="15"/>	
-		<TexCoords left="1" right="0.355" top="0.71" bottom="0.944"/>	
-	</Texture>
-
 	<CheckButton name="PREP_FriendsButtonTemplate" hidden="true" virtual="true" >
 		<Size x="36" y="36"/>	
 		<Layers>

@@ -19,7 +19,7 @@ local defaults = {
 			formatDate = false;
 			formatTime = false;
 			showPopup = true;
-			saveTime = 1800;
+			saveTime = 86400;
 		}
 	}
 }
@@ -28,26 +28,16 @@ local _options = {
 			formatDate = false;
 			formatTime = false;
 			showPopup = true;
-			saveTime = 1800;
+			saveTime = 86400;
 		}
 
 local _playersMet = {};
 local _currentGroup = {};
 local _newGroup = {};
-local _playerLeveled = false;
 local _openedDuringCombat = false;
+local _dateTimeFormat = "";
 
 _addonData.variables = {}
-local _aVar = _addonData.variables;
-_aVar.TBC_HEROIC = -1;
-_aVar.WOTLK_HEROIC = -3;
-_aVar.WOTLK_RAID = -4;
-_aVar.CATA_HEROIC = -5;
-_aVar.CATA_RAID = -6;
-_aVar.MOP_HEROIC = -7;
-_aVar.MOP_RAID = -8;
-_aVar.WOD_HEROIC = -9;
-_aVar.WOD_RAID = -10;
 
 _addonData.help = {}
 local _help = _addonData.help;
@@ -57,16 +47,7 @@ local DISPLAY_LIKE = 1;
 local DISPLAY_DISLIKE = 2;
 local DISPLAY_DETAILS = 3;
 
-local UNLOCKTYPE_SPELL = "spell";
-local UNLOCKTYPE_TALENT = "talent";
-local UNLOCKTYPE_GLYPH = "glyph";
-local UNLOCKTYPE_DUNGEON = "instance";
-local UNLOCKTYPE_PVP = "pvp";
-local UNLOCKTYPE_RIDING = "riding";
-local UNLOCKTYPE_TUTORIAL = "tutorial";
 local PLAYERS_PER_PAGE = 10;
-local ICON_TALENT = "Interface/ICONS/Ability_Marksmanship";
-local ICON_GLYPH = "Interface/ICONS/INV_Glyph_PrimeDruid";
 local CUSTOMPATH = "Interface/AddOns/".. addonName .."/Images/"
 
 local FORMAT_DATE_EU = "%d/%m/%Y";
@@ -74,16 +55,9 @@ local FORMAT_DATE_US = "%m/%d/%Y";
 local FORMAT_TIME_24 = "%H:%M:%S";
 local FORMAT_TIME_12 = "%I:%M:%S %p";
 
-local _dateTimeFormat = "";
-
 local HELP_INFO_MAIN = "As you join a party or a raid group you meet new people which will be added to this list.\n\nYou can like or dislike players for their behaviour and add a note.\n\nLiked or disliked players are saved while neutral players will disappear over time.\n\n"
 local HELP_INFO_TABS = "Over time, players in the list of people you met will dissapear.\n\nPlayers you liked of disliked will be stored in their respective tabs until you decide to make them neutral again.\n\n";
 local ERROR_OPEN_IN_COMBAT = "|cFFFFD100WIP:|r |cFFFF5555Can't open that during combat. It will open once you leave combat.|r";
-local TOOLTIP_TALENT = "Left click to pick your new talent.";
-local TOOLTIP_INSTANCE = "Left click to open the encounter\n journal for this instance.";
-local TOOLTIP_GLYPH = "Left click to pick your new glyphs.";
-local TOOLTIP_PVP = "Left click to open the\n battleground window.";
-local TOOLTIP_COMBAT = "|cFFFF5555Can't open during combat.|r";
 local TOOLTIP_FRIEND_ICON = "Players met.";
 
 local _helpPlate = {
@@ -231,7 +205,7 @@ local function GetFullDoubleDigit(number)
 	return string.format("%02d", number);
 end
 
-local function ShowUnlockContainer()
+local function ShowMainFrame()
 
 	-- prevent opening in combat because blizzard protection
 	if InCombatLockdown() then 
@@ -249,14 +223,14 @@ end
 
 local function Popup_OnClick(self, button)
 	if(button == "LeftButton") then
-		ShowUnlockContainer();
+		ShowMainFrame();
 		
 	end
 	self:Hide();
 end
 
 function PREP_ClearButton_OnClick()
-	PREP_ClearUnlockList();
+	PREP_ClearNeutral();
 end
 
 local function ToggleOptionFrame()
@@ -390,20 +364,6 @@ function UnlockContainer_OnMouseWheel(self, delta)
 	end
 end
 
-local function GetPlayerLevel()
-	return UnitLevel("player");
-end
-
-local function GetPlayerSpec()
-	if (GetSpecialization() ~= nil) then
-		return GetSpecializationInfo(GetSpecialization());
-	end
-	
-	return nil;
-end
-
-
-
 function PREP_UpdateNavigation()
 
 	local n, l, d = UpdateShowButtons()
@@ -439,29 +399,9 @@ function PREP_UpdateNavigation()
 
 end
 
-local function CreateUnlockAnimation(self)
-	-- create an animation to slide and fade in
-	self.animation = self:CreateAnimationGroup();
-	self.animation.translate = self.animation:CreateAnimation("Translation");
-	self.animation.translate:SetSmoothing("IN");
-	self.animation.alpha = self.animation:CreateAnimation("Alpha");
-	self.animation.alpha:SetChange(-1);
-	self.animation.alpha:SetSmoothing("IN");
-end
-
-local function PlayUnlockAnination(self)
-	self.animation:SetScript("OnFinished", function() self.data.new = false; end);
-	self.animation.translate:SetOffset(-50, 0);
-	self.animation.translate:SetDuration(0.5);
-	self.animation.alpha:SetDuration(0.5);
-	self.animation:Play(true);
-end
-
 local function ChangePlayerScore(button, change)
 	local parent = button:GetParent();
-	
-	
-	
+
 	for k, player in ipairs(_playersMet) do
 		if player.name == parent.name:GetText() then
 			player.score = player.score + change;
@@ -549,7 +489,6 @@ function PREP_CreateContainer()
 		
 		button:SetScript("OnEnter", function(self) 
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-				--GameTooltip:SetText(self.player.name .. "\nSeen First: |cFFFFFFFF" .. date(_dateTimeFormat, self.player.firstStamp) .. "|r\nSeen Last: |cFFFFFFFF" .. date(_dateTimeFormat, self.player.latestStamp) .."|r");
 				GameTooltip:SetText(self.player.name);
 				GameTooltip:AddDoubleLine("Seen First", date(_dateTimeFormat, self.player.firstStamp),1 ,1 ,1 ,1 ,1 ,1);
 				GameTooltip:AddDoubleLine("Seen Last", date(_dateTimeFormat, self.player.latestStamp),1 ,1 ,1 ,1 ,1 ,1);
@@ -576,7 +515,6 @@ function PREP_CreateContainer()
 		button.editBox:SetText("Write note");
 		button.editBox.editbox.Left:Hide();
 		button.editBox.editbox.Middle:Hide();
-		--button.editBox.editbox.Middle:SetTexture("Interface/LootFrame/LootHistory-NewItemGlow");
 		button.editBox.editbox:SetTextColor(0, 0, 0, 1);
 		button.editBox.editbox:SetShadowColor(0, 0, 0, 0);
 		button.editBox.editbox.Right:Hide();
@@ -677,8 +615,6 @@ function PREP_CreateContainer()
 			else
 				PREP_Options.saveTime:SetText(_options.saveTime);
 			end;
-			
-			--PREP_UpdateContainer();
 		end)
 	PREP_Options.saveTime.editbox:SetScript("OnEnter", function(self) 
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
@@ -743,7 +679,7 @@ local function PlayPopupAnimation(self)
 end
 
 local function CreateHideAnimation(self)
-	-- create flashing animation to highlight popup
+	-- create fade out animation for popup
 	self.animationHide = self:CreateAnimationGroup();
 	self.animationHide.alpha = self.animationHide:CreateAnimation("Alpha");
 	self.animationHide.alpha:SetChange(-1);
@@ -778,10 +714,6 @@ local function PREP_CreatePopup()
 			self.highlight:SetAlpha(1);
 		end );
 	
-	--PREP_AlertPopup:SetScript("OnHide", function(self) 
-	--		PlayHideAnimation(PREP_AlertPopup);
-	--	end );
-	
 	PREP_AlertPopup.showTime = 0;
 	
 	PREP_AlertPopup:SetScript("OnClick", function(self, button) Popup_OnClick(self, button);end );
@@ -798,11 +730,11 @@ local function PREP_CreatePopup()
 	PREP_AlertPopup:RegisterForClicks("LeftButtonUp", "RightButtonUp");
 end
 
-local function ToggleUnlockedPage(show)
+local function ToggleMainFrame(show)
 	if InCombatLockdown() then return; end
 	
 	if (show) then
-		ShowUnlockContainer();
+		ShowMainFrame();
 	else
 		PREP_PlayerMetContainer:Hide();
 	end
@@ -813,10 +745,8 @@ local function CreateSpellbookIcon()
 
 	local L_PREP_FriendsTab = CreateFrame("CheckButton", "PREP_FriendsTab", FriendsFrame, "PREP_FriendsButtonTemplate");
 	L_PREP_FriendsTab:SetPoint("TOPRIGHT", FriendsFrame, "BOTTOMRIGHT", -15, 1);
-	--file="Interface\AddOns\PlayerRep\Images\TabBackground"
 	L_PREP_FriendsTab.bg:SetTexture(CUSTOMPATH .. "TabBackground");
 	L_PREP_FriendsTab:Show();
-	-- overwrite scripts from template
 	L_PREP_FriendsTab:SetScript("OnEnter", function(self) 
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT", 0, 0);
 		if InCombatLockdown() then
@@ -829,7 +759,7 @@ local function CreateSpellbookIcon()
 			if InCombatLockdown() then
 				L_PREP_FriendsTab:SetChecked(false);
 			else
-				ToggleUnlockedPage(not PREP_PlayerMetContainer:IsShown()); 
+				ToggleMainFrame(not PREP_PlayerMetContainer:IsShown()); 
 			end
 		end);
 
@@ -837,8 +767,6 @@ local function CreateSpellbookIcon()
 	L_PREP_FriendsTab.icon:SetPoint("center", L_PREP_FriendsTab, "center", 0, 1);
 	L_PREP_FriendsTab.icon:SetSize(32, 32);
 	L_PREP_FriendsTab.icon:SetTexture("Interface/ICONS/Achievement_Reputation_01");
-	--L_PREP_FriendsTab.icon:Hide();
-	
 	
 end
 
@@ -847,7 +775,6 @@ local function ResetButtons()
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
 		button.player = nil;
 		button.name:SetText("PlayerName"..i);
-		--button.subText:SetText(i);
 		button.scorePositive:Hide();
 		button.scoreNegative:Hide();
 		button.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Disabled");
@@ -892,7 +819,7 @@ local function GetPlayersToDisplay(search)
 		end
 	end
 	
-	
+	-- Apply search to list
 	if search ~= "" then
 		local searched = {};
 		for k, player in pairs(temp) do
@@ -928,9 +855,7 @@ function PREP_UpdateContainer()
 	SortPlayerList();
 	DeleteOldNeutralPlayers();
 	UpdateShowButtons();
-	
-	
-	
+
 	PREP_PlayerDetails:Hide();
 	if PREP_PlayerMetContainer.display == DISPLAY_DETAILS then
 		PREP_PlayerDetails:Show();
@@ -954,7 +879,6 @@ function PREP_UpdateContainer()
 
 		button:Show();
 		button.name:SetText(player.name);
-		--button.subText:SetText(date("%c", player.latestStamp));
 		button.iconClass:SetTexture("Interface/ICONS/ClassIcon_" .. string.gsub(player.class, " ", ""));
 		local path = CUSTOMPATH .. "Race_" .. player.race .. "_" .. player.sex;
 		path = player.race == "Pandaren" and path .. "_" .. faction or path;
@@ -999,7 +923,6 @@ local function IsInCurrentGroup(name)
 end
 
 local function CheckForNowPlayers()
-	local count = 0;
 	local liked = 0;
 	local disliked = 0;
 	
@@ -1007,7 +930,6 @@ local function CheckForNowPlayers()
 	
 	for k, player in ipairs(_newGroup) do
 		if (not IsInCurrentGroup(player.name)) then
-			count = count + 1;
 			playerSave = GetPlayerSave(player.name);
 			if playerSave.score == 1 then
 				liked = liked + 1;
@@ -1021,10 +943,6 @@ local function CheckForNowPlayers()
 		ShowPopUp(liked, disliked);
 	end
 	
-	if count == 0 then
-		--print("No new players");
-	end
-	
 	_currentGroup = {};
 	for k, player in ipairs(_newGroup) do
 		table.insert(_currentGroup, player);
@@ -1036,17 +954,17 @@ end
 local function AddPlayerToList(unit)
 	local temp = {};
 	temp.name = GetUnitName(unit, true);
-	-- add home realm if missing
+	
 	
 	if temp.name == "Unknown" then
 		PREP_LoadFrame.time = 0;
 		PREP_LoadFrame.foundUnknown = true;
-		print("Found an unknown");
 	end
 	
 	if temp.name == "Unknown" or (unit ~= "player" and temp.name == GetUnitName("player", true)) then
 		return;
 	end
+	-- if name doens't contain - for realm, add player realm.
 	temp.name = string.find(temp.name, "-") and temp.name or temp.name .. "-" .. GetRealmName();
 	temp.class = UnitClass(unit);
 	temp.sex = UnitSex(unit) == 2 and "Male" or "Female";
@@ -1081,7 +999,7 @@ local function AddInstance()
 	CheckForNowPlayers(newGroup);
 end
 
-function PREP_ClearUnlockList()
+function PREP_ClearNeutral()
 	for i=#_playersMet,1,-1 do
 		if _playersMet[i].score == 0 then
 			table.remove(_playersMet, i);
@@ -1094,34 +1012,10 @@ function PlayerRep:OnInitialize()
 	self.db = LibStub("AceDB-3.0"):New("PrepDB", defaults, true);
 end
 
-function PlayerRep:OnEnable()
---[[
-	local currentTime = time();
-	for k, player in ipairs(self.db.global.playersMet) do
-		if player.score ~= 0 or currentTime - player.latestStamp < _options.saveTime then
-			if (player.score == nil) then
-				player.score = 0;
-			end
-			table.insert(_playersMet, player);
-		end
-	end
-
-	PREP_Options.format.date:SetChecked(PlayerRep.db.global.options.formatDate);
-	PREP_Options.format.time:SetChecked(PlayerRep.db.global.options.formatTime);
-	
-	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
-	
-	]]--
-end
-
-
-
 local L_PREP_LoadFrame = CreateFrame("FRAME", "PREP_LoadFrame"); 
-PREP_LoadFrame:RegisterEvent("PLAYER_LEVEL_UP");
 PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
 PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_DISABLED");
 PREP_LoadFrame:RegisterEvent("ADDON_LOADED");
-PREP_LoadFrame:RegisterEvent("PLAYER_LOGOUT");
 PREP_LoadFrame:RegisterEvent("GROUP_JOINED");
 PREP_LoadFrame:RegisterEvent("GROUP_ROSTER_UPDATE");
 PREP_LoadFrame:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
@@ -1131,16 +1025,12 @@ PREP_LoadFrame:SetScript("OnUpdate", function(self, elapsed)
 		if PREP_LoadFrame.foundUnknown then
 			PREP_LoadFrame.time = PREP_LoadFrame.time + elapsed;
 			if PREP_LoadFrame.time >= 1 then
-				print("Rechecking unknowns");
 				PREP_LoadFrame.time = 0;
 				PREP_LoadFrame.foundUnknown = false;
 				AddInstance();
 			end
 		end
 	end)
-
-function PREP_LoadFrame:PLAYER_LEVEL_UP(level, hp, mp, talentPoints, strength, agility, stamina, intellect, spirit)
-end
 
 function PREP_LoadFrame:PLAYER_REGEN_DISABLED()
 	PREP_AlertPopup:Hide();
@@ -1150,12 +1040,10 @@ end
 function PREP_LoadFrame:PLAYER_REGEN_ENABLED()
 	
 	if _openedDuringCombat then
-		ShowUnlockContainer();
+		ShowMainFrame();
 		_openedDuringCombat = false;
 	end
 end
-
-
 
 function PREP_LoadFrame:GROUP_JOINED()
 	AddInstance();
@@ -1163,14 +1051,6 @@ end
 
 function PREP_LoadFrame:GROUP_ROSTER_UPDATE()
 	AddInstance();
-end
-
-function PREP_LoadFrame:PLAYER_LOGOUT(loadedAddon)
-	--PlayerRep.db.global.playersMet = _playersMet;
-	--PlayerRep.db.global.options.formatDate = PREP_Options.format.date:GetChecked();
-	--PlayerRep.db.global.options.formatTime = PREP_Options.format.time:GetChecked();
-	
-	--PREP_ShowHelpUnlocks(false);
 end
 
 function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
@@ -1218,22 +1098,92 @@ end
 -- Slash Commands
 ----------------------------------------
 
-SLASH_WIPSLASH1 = '/prep';
+
+
+SLASH_PREPSLASH1 = '/prep';
+SLASH_PREPSLASH2 = '/playerrep';
 local function slashcmd(msg, editbox)
 	if msg == 'options' then
-		ShowUnlockContainer();
+		ShowMainFrame();
 		PREP_Options:Show();
 	elseif msg == "t" then
 		if UnitIsPlayer("target") then
 			AddPlayerToList("target");
 		end
+	--[[
 	elseif msg == "g" then
-		print(FormatSeconds(0));
-		print(FormatSeconds(1800));
-		print(FormatSeconds(86520));
-		print(FormatSeconds(6541843));
+
+		local now = time();
+		local temp = {{
+				["race"] = "Human",
+				["note"] = "Friendly player",
+				["name"] = "Hankin-Greymane",
+				["sex"] = "Female",
+				["firstStamp"] = now,
+				["class"] = "Priest",
+				["score"] = 1,
+				["latestStamp"] = now,
+			},
+			{
+				["race"] = "Bloodelf",
+				["note"] = "",
+				["name"] = "Kalle-Shadowsong",
+				["sex"] = "Male",
+				["firstStamp"] = now,
+				["class"] = "Warlock",
+				["score"] = 0,
+				["latestStamp"] = now,
+			},
+			{
+				["race"] = "Scourge",
+				["note"] = "",
+				["name"] = "Ophelia-Frostmane",
+				["sex"] = "Female",
+				["firstStamp"] = now,
+				["class"] = "Rogue",
+				["score"] = 0,
+				["latestStamp"] = now,
+			},
+			{
+				["race"] = "Pandaren",
+				["note"] = "Ninjapuller and calling people names",
+				["name"] = "Sying-Mazrigos",
+				["sex"] = "Female",
+				["firstStamp"] = now,
+				["class"] = "Monk",
+				["score"] = -1,
+				["latestStamp"] = now,
+			},
+			{
+				["race"] = "Dwarf",
+				["note"] = "Great healer",
+				["name"] = "Bramrim-Earthen Ring",
+				["sex"] = "Male",
+				["firstStamp"] = now,
+				["class"] = "Paladin",
+				["score"] = 1,
+				["latestStamp"] = now,
+			},
+			{
+				["race"] = "Tauren",
+				["note"] = "",
+				["name"] = "Bemen-Magtheridon",
+				["sex"] = "Male",
+				["firstStamp"] = now,
+				["class"] = "Warrior",
+				["score"] = 0,
+				["latestStamp"] = now,
+			}
+			}
+		for k, player in ipairs(temp) do
+			player.firstStamp = now - (k*math.random(120,200));
+			player.latestStamp = now - (k*math.random(10,80));
+			table.insert(_playersMet, player);
+			
+		end
+		]]--
 	else
-		ShowUnlockContainer();
+		ShowMainFrame();
 	end
 end
-SlashCmdList["WIPSLASH"] = slashcmd
+SlashCmdList["PREPSLASH"] = slashcmd
