@@ -41,16 +41,24 @@
 	
 	<Button name="PREP_ListChoiseTemplate" hidden="false" inherits="SecureFrameTemplate" virtual="true">
 		<Size>
-			<AbsDimension x="70" y="25"/>
+			<AbsDimension x="80" y="25"/>
 		</Size>
 		<Layers>
 			<Layer level="BACKGROUND">
 				<Texture name="$parentBackground" file="Interface\QUESTFRAME\UI-QuestItemNameFrame" parentKey="bg" hidden="false">
 					<TexCoords left="0.08" right="0.92" top="0.17" bottom="0.82"/>
 					<Anchors>
-						<Anchor point="TOPLEFT" relativePoint="TOPLEFT"/>
-						<Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT"/>
+						<Anchor point="TOPLEFT" relativePoint="TOPLEFT" />
+						<Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT" />
 					</Anchors>
+				</Texture>
+				<Texture file="Interface\QUESTFRAME\UI-QuestItemHighlight" hidden="false" alphaMode="ADD" parentKey="select">
+					<TexCoords left="0.194" right="0.5937" top="0.120" bottom="0.7"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" x="2" y="-2"/>
+						<Anchor point="BOTTOMRIGHT" x="-2" y="2"/>
+					</Anchors>
+					<Color r="1" g="1" b="1" a="0.5"/>
 				</Texture>
 			</Layer>
 			
@@ -60,7 +68,7 @@
 						<AbsDimension y="10"/>
 					</Size>
 					<Anchors>
-						<Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT" x="40"/>
+						<Anchor point="LEFT" relativeTo="$parent" relativePoint="LEFT" x="35"/>
 						<Anchor point="RIGHT" relativeTo="$parent" relativePoint="RIGHT" x="-5"/>
 					</Anchors>
 				</FontString>
@@ -263,6 +271,13 @@
 						<Anchor point="LEFT" relativeTo="$parentClass" relativePoint="RIGHT" x="-5"/>
 					</Anchors>
 				</Texture>
+				<Texture name="$parentParty" file="Interface\BUTTONS\UI-Listbox-Highlight2" hidden="true" parentKey="partyHighlight" alphaMode="ADD">
+					<Color r="1" g="1" b="1" a="0.2"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativePoint="TOPLEFT"/>
+						<Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT"/>
+					</Anchors>
+				</Texture>
 				<Texture name="$parentScorePositive" file="Interface\BUTTONS\UI-Listbox-Highlight2" hidden="true" parentKey="scorePositive" alphaMode="ADD">
 					<Color r="0" g="1" b="0" a="0.2"/>
 					<Anchors>
@@ -270,13 +285,7 @@
 						<Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT"/>
 					</Anchors>
 				</Texture>
-				<Texture name="$parentScoreNegative" file="Interface\BUTTONS\UI-Listbox-Highlight2" hidden="true" parentKey="scoreNegative" alphaMode="ADD">
-					<Color r="1" g="0" b="0" a="0.2"/>
-					<Anchors>
-						<Anchor point="TOPLEFT" relativePoint="TOPLEFT"/>
-						<Anchor point="BOTTOMRIGHT" relativePoint="BOTTOMRIGHT"/>
-					</Anchors>
-				</Texture>
+				
 			</Layer>
 			<Layer level="ARTWORK">
 				<Texture name="$parentRace" file="Interface\ICONS\Achievement_Character_Human_Female" parentKey="iconRace">
@@ -293,13 +302,21 @@
 				</Texture>
 				<FontString name="$parentName" inherits="GameFontNormal" maxLines="3" hidden="false" justifyH="LEFT" parentKey="name">
 					<Size>
-						<AbsDimension x="225" y="10"/>
+						<AbsDimension x="210" y="10"/>
 					</Size>
 					<Anchors>
-						<Anchor point="TOPLEFT" relativeTo="$parentClass" relativePoint="TOPRIGHT" x="10" y="-2"/>
+						<Anchor point="TOPLEFT" relativeTo="$parentClass" relativePoint="TOPRIGHT" x="25" y="-2"/>
 					</Anchors>
 				</FontString>
 				
+				<FontString name="$parentEncounters" inherits="GameFontNormal" hidden="false" justifyH="LEFT" parentKey="encounters">
+					<Size>
+						<AbsDimension x="30" y="10"/>
+					</Size>
+					<Anchors>
+						<Anchor point="BOTTOMLEFT" relativeTo="$parentClass" relativePoint="BOTTOMRIGHT" x="10" y="3"/>
+					</Anchors>
+				</FontString>
 				
 				<FontString name="$parentSubText" inherits="GameFontBlackSmall" hidden="false" justifyH="LEFT" parentKey="subText">
 					<Size>
@@ -309,6 +326,8 @@
 						<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="50" y="-5"/>
 					</Anchors>
 				</FontString>
+				
+				
 			</Layer>
 			<Layer level="HIGHLIGHT">
 				<Texture name="$parentHighlight" file="Interface\BUTTONS\UI-Listbox-Highlight2" hidden="false" alphaMode="ADD">
@@ -322,47 +341,83 @@
 		</Layers>
 		
 		<Frames>
-			<Button name="$parentUpvote" parentKey="upvote" >
+			<Button name="$parentInParty" parentKey="inPartyBtn" hidden="true">
 				<Size>
 					<AbsDimension x="15" y="15"/>
 				</Size>
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="2" />
+					<Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-2" y="-2"/>
 				</Anchors>
 				
-				<NormalTexture file="Interface\Buttons\Arrow-Up-Disabled" parentKey="texture"/>
-				<PushedTexture file="Interface\Buttons\Arrow-Up-Down"/>
-				<DisabledTexture file="Interface\Buttons\Arrow-Up-Disabled"/>
-				<HighlightTexture file="Interface\Buttons\Arrow-Up-Up" alphaMode="ADD"/>
-				
+				<NormalTexture file="Interface\FriendsFrame\UI-Toast-ChatInviteIcon" parentKey="texture">
+				</NormalTexture>
 				<Scripts>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText("Like player");
+						GameTooltip:SetText("This player is in your group");
+						PREP_EnterPlayerButton(self:GetParent());
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
 					</OnLeave>
 				</Scripts>
 			</Button>
-			
-			<Button name="$parentDownvote" parentKey="downvote" >
+		
+			<CheckButton name="$parentUpvote" parentKey="upvote" >
 				<Size>
 					<AbsDimension x="15" y="15"/>
 				</Size>
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="20" y="-5"/>
+					<Anchor point="RIGHT" relativeTo="$parentName" relativePoint="LEFT" x="-3"/>
 				</Anchors>
 				
-				<NormalTexture file="Interface\Buttons\Arrow-Down-Disabled" parentKey="texture"/>
-				<PushedTexture file="Interface\Buttons\Arrow-Down-Down"/>
-				<DisabledTexture file="Interface\Buttons\Arrow-Down-Disabled"/>
-				<HighlightTexture file="Interface\Buttons\Arrow-Down-Up" alphaMode="ADD"/>
-				
+				<NormalTexture file="Interface\COMMON\ReputationStar" parentKey="texture">
+					<TexCoords left="0.5" right="1" top="0" bottom="0.5"/>
+				</NormalTexture>
+				<CheckedTexture file="Interface\COMMON\ReputationStar">
+					<TexCoords left="0" right="0.5" top="0" bottom="0.5"/>
+				</CheckedTexture>
+				<HighlightTexture file="Interface\COMMON\ReputationStar" alphaMode="ADD">
+					<TexCoords left="0" right="0.5" top="0" bottom="0.5"/>
+				</HighlightTexture>
 				<Scripts>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText("Dislike player");
+						GameTooltip:SetText("Star player for good\n behaviour or skill");
+						PREP_EnterPlayerButton(self:GetParent());
+					</OnEnter>
+					<OnLeave>
+						GameTooltip:Hide();
+					</OnLeave>
+				</Scripts>
+			</CheckButton>
+			
+			<Button name="$parentBefriend" parentKey="befriend" hidden="true">
+				<Size>
+					<AbsDimension x="13" y="13"/>
+				</Size>
+				<Anchors>
+					<Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-5" y="-5"/>
+				</Anchors>
+				
+				<NormalTexture file="Interface\FriendsFrame\UI-Toast-FriendRequestIcon" parentKey="texture">
+					<TexCoords left="0.15" right="0.90" top="0.15" bottom="0.90"/>
+				</NormalTexture>
+				<PushedTexture file="Interface\FriendsFrame\UI-Toast-FriendRequestIcon"/>
+				<DisabledTexture file="Interface\FriendsFrame\UI-Toast-FriendRequestIcon"/>
+				<HighlightTexture file="Interface\FriendsFrame\UI-Toast-FriendRequestIcon" alphaMode="ADD">
+					<TexCoords left="0.15" right="0.90" top="0.15" bottom="0.90"/>
+				</HighlightTexture>
+				
+				<Scripts>
+					<OnClick>
+						print(self:GetParent().player.name);
+						AddFriend(self:GetParent().player.name);
+					</OnClick>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText("Add player to\n your friendlist");
+						PREP_EnterPlayerButton(self:GetParent());
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
@@ -374,7 +429,7 @@
 					<AbsDimension x="13" y="13"/>
 				</Size>
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parentName" relativePoint="BOTTOMLEFT" x="40" y="-3"/>
+					<Anchor point="LEFT" relativeTo="$parentEncounters" relativePoint="RIGHT" x="5"/>
 				</Anchors>
 				
 				<NormalTexture file="Interface\Buttons\UI-GuildButton-PublicNote-Disabled" parentKey="texture"/>
@@ -386,6 +441,7 @@
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 						GameTooltip:SetText("Set note");
+						PREP_EnterPlayerButton(self:GetParent());
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
@@ -393,6 +449,7 @@
 				</Scripts>
 			</Button>
 		</Frames>
+		
 	</Button>
 	
 	<Frame name="PREP_PlayerMetContainer" toplevel="true" movable="true" enableMouse="true" hidden="true" parent="UIParent" inherits="ButtonFrameTemplate" frameStrata="MEDIUM">
@@ -432,37 +489,6 @@
 					</OnClick>
 				</Scripts>
 			</Button>
-		
-			<Button name="$parentClearButton" parentKey="Clear" >
-				<Size>
-					<AbsDimension x="32" y="32"/>
-				</Size>
-				<HitRectInsets left="5" top="5" right="5" bottom="5"/>
-				<Anchors>
-					<Anchor point="TOPRIGHT" relativeTo="$parent">
-						<Offset>
-							<AbsDimension x="-25" y="-50"/>
-						</Offset>
-					</Anchor>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-						PREP_ClearButton_OnClick();
-					</OnClick>
-					<OnEnter>
-						GameTooltip:SetOwner(self, "ANCHOR_RIGHT", -3, -3);
-						GameTooltip:SetText("Remove all neutral players.");
-					</OnEnter>
-					<OnLeave>
-						GameTooltip:Hide();
-					</OnLeave>
-				</Scripts>
-				<NormalTexture file="Interface\Buttons\CancelButton-Up" parentKey="normal"/>
-				<PushedTexture file="Interface\Buttons\CancelButton-Down"/>
-				<DisabledTexture file="Interface\Buttons\CancelButton-Disabled"  parentKey="disabled"/>
-				<HighlightTexture file="Interface\Buttons\UI-Panel-MinimizeButton-Highlight" alphaMode="ADD"/>
-			</Button>
-			
 			<Button name="$parentOptionsButton" parentKey="OptionsButton" >
 				<Size>
 					<AbsDimension x="20" y="20"/>
@@ -481,7 +507,7 @@
 					</OnClick>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT", -3, -3);
-						GameTooltip:SetText("Toggle options.");
+						GameTooltip:SetText("Toggle options");
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
@@ -502,7 +528,7 @@
 		
 			<Button name="$parentShowMetButton" inherits="PREP_ListChoiseTemplate" hidden="false" parentKey="showMetButton" >
 				<Anchors>
-					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="110" y="-35"/>
+					<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="95" y="-35"/>
 				</Anchors>
 				
 				<Layers>
@@ -519,7 +545,7 @@
 				<Scripts>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText("Show recently met players.");
+						GameTooltip:SetText("Show recently met players");
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
@@ -534,11 +560,11 @@
 				
 				<Layers>
 					<Layer level="ARTWORK">
-						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" parentKey="icon" hidden="false">
-							<Color r="0" g="0.8" b="0" a="1"/>
-							<Size x="25"  y="25"/>
+						<Texture name="$parentIcon" file="Interface\COMMON\ReputationStar" parentKey="icon" hidden="false">
+							<TexCoords left="0" right="0.5" top="0" bottom="0.5"/>
+							<Size x="18"  y="18"/>
 							<Anchors>
-								<Anchor point="LEFT" relativePoint="LEFT" x="3"/>
+								<Anchor point="LEFT" relativePoint="LEFT" x="6"/>
 							</Anchors>
 						</Texture>
 					</Layer>
@@ -547,26 +573,25 @@
 				<Scripts>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText("Show all liked players.");
+						GameTooltip:SetText("Show all starred players");
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
 					</OnLeave>
 				</Scripts>
 			</Button>
-			
-			<Button name="$parentShowDislikeButton" inherits="PREP_ListChoiseTemplate" hidden="false" parentKey="showDislikeButton" >
+		
+			<Button name="$parentShowNotedButton" inherits="PREP_ListChoiseTemplate" hidden="false" parentKey="showNotedButton" >
 				<Anchors>
 					<Anchor point="TOPLEFT" relativeTo="$parentShowLikeButton" relativePoint="TOPRIGHT" x="10" />
 				</Anchors>
 				
 				<Layers>
 					<Layer level="ARTWORK">
-						<Texture name="$parentIcon" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" parentKey="icon" hidden="false">
-							<Color r="0.8" g="0" b="0" a="1"/>
-							<Size x="25"  y="25"/>
+						<Texture name="$parentIcon" file="Interface\Buttons\UI-GuildButton-PublicNote-Up" parentKey="icon" hidden="false">
+							<Size x="16"  y="16"/>
 							<Anchors>
-								<Anchor point="LEFT" relativePoint="LEFT" x="3"/>
+								<Anchor point="LEFT" relativePoint="LEFT" x="8"/>
 							</Anchors>
 						</Texture>
 					</Layer>
@@ -575,12 +600,38 @@
 				<Scripts>
 					<OnEnter>
 						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-						GameTooltip:SetText("Show all disliked players.");
+						GameTooltip:SetText("Show all noted players");
 					</OnEnter>
 					<OnLeave>
 						GameTooltip:Hide();
 					</OnLeave>
 				</Scripts>
+			</Button>
+
+			<Button name="$parentShowAll" parentKey="showAllButton" >
+				<Size>
+					<AbsDimension x="20" y="20"/>
+				</Size>
+				<Anchors>
+					<Anchor point="RIGHT" relativeTo="$parentOptionsButton" relativePoint="LEFT" x="-5" y="0" />
+				</Anchors>
+				<Scripts>
+					<OnEnter>
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+						GameTooltip:SetText("Show all saved players");
+					</OnEnter>
+					<OnLeave>
+						GameTooltip:Hide();
+					</OnLeave>
+				</Scripts>
+				<NormalTexture file="Interface\FriendsFrame\StatusIcon-Away" parentKey="normal">
+				</NormalTexture>
+				<PushedTexture file="Interface\FriendsFrame\StatusIcon-Away">
+					<Color r="0.75" g="0.75" b="0.75" a="1"/>
+				</PushedTexture>
+				<DisabledTexture file="Interface\FriendsFrame\StatusIcon-Away"/>
+				<HighlightTexture file="Interface\FriendsFrame\StatusIcon-Away" alphaMode="ADD"/>
+				
 			</Button>
 		
 			<Button name="PREP_PlayerButton01" inherits="PREP_PlayerButtonTemplate" >
@@ -723,7 +774,7 @@
 			
 			<Frame name="PREP_Options" hidden="true" enableMouse="true" inherits="UIPanelDialogTemplate" frameStrata="HIGH">
 				<Size>
-					<AbsDimension x="325" y="205"/>
+					<AbsDimension x="325" y="240"/>
 				</Size>
 				
 				<Anchors>
@@ -746,6 +797,11 @@
 								<Anchor point="TOPLEFT" x="135" y="-90"/>
 							</Anchors>
 						</FontString>
+						<FontString name="$parentStorage" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="storageLimitText" text="???? / ????">
+							<Anchors>
+								<Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-70" y="-205"/>
+							</Anchors>
+						</FontString>
 					</Layer>
 				</Layers>
 				
@@ -758,7 +814,7 @@
 							<Layer level="overlay">
 								<FontString name="$parentTitleText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Enable pop-up">
 									<Size>
-										<AbsDimension x="150" y="20"/>
+										<AbsDimension x="95" y="20"/>
 									</Size>
 									<Anchors>
 										<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT" />
@@ -769,7 +825,33 @@
 						<Scripts>
 							<OnEnter>
 								GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-								GameTooltip:SetText("Show a popup every time\n someone joins your group\n who you liked or disliked.");
+								GameTooltip:SetText("Show a popup every time\n someone joins your group\n who you liked or noted");
+							</OnEnter>
+							<OnLeave>
+								GameTooltip:Hide();
+							</OnLeave>
+						</Scripts>
+					</CheckButton>
+					<CheckButton name="$parentCBPopupSound" inherits="UICheckButtonTemplate" hidden="false" parentKey="popupSound" checked="true">
+						<Anchors>
+							<Anchor point="LEFT" relativeTo="$parentCBPopup" relativePoint="RIGHT"  x="105" y="0"/>
+						</Anchors>
+						<Layers>
+							<Layer level="overlay">
+								<FontString name="$parentText" inherits="GameFontWhite" justifyH="LEFT" justifyV="MIDDLE" text="Pop-up sound">
+									<Size>
+										<AbsDimension x="90" y="20"/>
+									</Size>
+									<Anchors>
+										<Anchor point="LEFT" relativeTo="$parent" relativePoint="RIGHT" />
+									</Anchors>
+								</FontString>
+							</Layer>
+						</Layers>
+						<Scripts>
+							<OnEnter>
+								GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+								GameTooltip:SetText("Play a sound when\n the pop-up shows");
 							</OnEnter>
 							<OnLeave>
 								GameTooltip:Hide();
@@ -818,7 +900,7 @@
 								<Scripts>
 									<OnEnter>
 										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Show dates using mm/dd/yyyy\n rather than dd/mm/yyyy.");
+										GameTooltip:SetText("Show dates using mm/dd/yyyy\n rather than dd/mm/yyyy");
 									</OnEnter>
 									<OnLeave>
 										GameTooltip:Hide();
@@ -845,7 +927,7 @@
 								<Scripts>
 									<OnEnter>
 										GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-										GameTooltip:SetText("Use 12h clock rather than 24h.");
+										GameTooltip:SetText("Use 12h clock rather than 24h");
 									</OnEnter>
 									<OnLeave>
 										GameTooltip:Hide();
@@ -886,6 +968,7 @@
 				PREP_HelpFrame:Hide();
 				PREP_FriendsTab:SetChecked(false);
 				PREP_ShowHelpUnlocks(false);
+				PREP_HideThingsFromAllPlayerButtons();
 			</OnHide>
 		</Scripts>
 		
@@ -893,11 +976,25 @@
 
 	<Button name="PREP_AlertPopup" toplevel="true" movable="true" enableMouse="true" inherits="SecureFrameTemplate" hidden="true" parent="UIParent" frameStrata="LOW">
 		<Size>
-			<AbsDimension x="90" y="42"/>
+			<AbsDimension x="48" y="65"/>
 		</Size>
+		
+		<Backdrop bgFile="Interface\Collections\CollectionsBackgroundTile" edgeFile="Interface\BUTTONS\UI-SliderBar-Border" tile="true">
+			<EdgeSize>
+				<AbsValue val="8"/>
+			</EdgeSize>
+			<TileSize>
+				<AbsValue val="64"/>
+			</TileSize>
+			<BackgroundInsets>
+				<AbsInset left="1" right="1" top="5" bottom="5"/>
+			</BackgroundInsets>
+		</Backdrop>
 		<Layers>
 			<Layer level="Background">
 
+				
+				<!--
 				<Texture file="Interface\Garrison\GarrisonMissionUI2" parentKey="bg">
 					<Anchors>
 						<Anchor point="TOPLEFT"/>
@@ -905,9 +1002,11 @@
 					</Anchors>
 					<TexCoords left="0.436" right="0.576" top="0.763" bottom="0.819"/>
 				</Texture>
+				-->
 			</Layer>
 			
 			<Layer level="Artwork">
+				<!--
 				<Texture file="Interface\ICONS\Achievement_Reputation_01" name="$parentIcon" parentKey="icon">
 					<Size x="34" y="34"/>
 					<Anchors>
@@ -915,18 +1014,41 @@
 					</Anchors>
 				</Texture>
 				
-				<Texture name="$parentIconLiked" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" hidden="false">
-					<Color r="0" g="0.8" b="0" a="1"/>
-					<Size x="25"  y="25"/>
+				
+				<CheckedTexture file="Interface\COMMON\ReputationStar">
+					<TexCoords left="0" right="0.5" top="0" bottom="0.5"/>
+				</CheckedTexture>
+
+				
+				<FontString name="$parentTitle" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="liked" text="PREP">
+					<Size>
+						<AbsDimension y="0"/>
+					</Size>
 					<Anchors>
-						<Anchor point="LEFT" relativePoint="LEFT" relativeTo="$parentIcon" x="35" y="10"/>
+						<Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPLEFT" x="5" y="-5"/>
+						<Anchor point="TOPRIGHT" relativeTo="$parent" relativePoint="TOPRIGHT" x="-5" y="-5"/>
+					</Anchors>
+				</FontString>
+				-->
+				
+				<Texture name="$parentIconLiked" file="Interface\COMMON\ReputationStar" hidden="false">
+					<Size x="14"  y="14"/>
+					<TexCoords left="0" right="0.5" top="0" bottom="0.5"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativePoint="TOPLEFT" relativeTo="$parent" x="7" y="-9"/>
 					</Anchors>
 				</Texture>
-				<Texture name="$parentIconDisliked" file="Interface\FriendsFrame\UI-Toast-FriendOnlineIcon" hidden="false">
-					<Color r="0.8" g="0" b="0" a="1"/>
-					<Size x="25"  y="25"/>
+				
+				<Texture name="$parentIconNotes" file="Interface\BUTTONS\UI-GuildButton-PublicNote-Up" hidden="false">
+					<Size x="14"  y="14"/>
 					<Anchors>
-						<Anchor point="LEFT" relativePoint="LEFT" relativeTo="$parentIcon" x="35" y="-10"/>
+						<Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="$parentIconLiked" x="0" y="-3"/>
+					</Anchors>
+				</Texture>
+				<Texture name="$parentIconMet" file="Interface\BUTTONS\UI-RefreshButton" hidden="false">
+					<Size x="14"  y="14"/>
+					<Anchors>
+						<Anchor point="TOPLEFT" relativePoint="BOTTOMLEFT" relativeTo="$parentIconNotes" x="0" y="-3"/>
 					</Anchors>
 				</Texture>
 				
@@ -938,16 +1060,25 @@
 						<Anchor point="LEFT" relativeTo="$parentIconLiked" relativePoint="RIGHT" x="-2"/>
 					</Anchors>
 				</FontString>
-				<FontString name="$parentTextDisLiked" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="disliked" text="0">
+				<FontString name="$parentTextNotes" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="notes" text="0">
 					<Size>
 						<AbsDimension x="28" y="18"/>
 					</Size>
 					<Anchors>
-						<Anchor point="LEFT" relativeTo="$parentIconDisliked" relativePoint="right" x="-2"/>
+						<Anchor point="LEFT" relativeTo="$parentIconNotes" relativePoint="RIGHT" x="-2"/>
+					</Anchors>
+				</FontString>
+				<FontString name="$parentTextMet" inherits="GameFontNormal" justifyH="CENTER" justifyV="MIDDLE" parentKey="met" text="0">
+					<Size>
+						<AbsDimension x="28" y="18"/>
+					</Size>
+					<Anchors>
+						<Anchor point="LEFT" relativeTo="$parentIconMet" relativePoint="right" x="-2"/>
 					</Anchors>
 				</FontString>
 			</Layer>
 			
+			<!--
 			<Layer level="overlay">
 				<Texture file="Interface\ACHIEVEMENTFRAME\UI-Achievement-IconFrame" name="$parentIconBorder">
 					<Size x="50" y="50"/>
@@ -957,20 +1088,21 @@
 					<TexCoords left="0" right="0.581" top="0" bottom="0.581"/>
 				</Texture>
 			</Layer>
+			-->
 			
 			<Layer level="highlight">
 				<Texture file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar" alphaMode="ADD">
 					<Anchors>
-						<Anchor point="TOPLEFT" x="40" y="-3"/>
-						<Anchor point="BOTTOMRIGHT" x="-23" y="2"/>
+						<Anchor point="TOPLEFT" x="3" y="-8"/>
+						<Anchor point="BOTTOMRIGHT" x="-22" y="7"/>
 					</Anchors>
-					<TexCoords left="0" right="0.25" top="0.1" bottom="0.9"/>
+					<TexCoords left="0" right="0.5" top="0.1" bottom="0.9"/>
 					<Color r="1" g="1" b="1" a="0.5"/>
 				</Texture>
 				<Texture file="Interface\FriendsFrame\UI-FriendsFrame-HighlightBar" alphaMode="ADD">
 					<Anchors>
-						<Anchor point="TOPLEFT" relativePoint="TOPRIGHT" x="-23" y="-3"/>
-						<Anchor point="BOTTOMRIGHT" x="-3" y="2"/>
+						<Anchor point="TOPLEFT" relativePoint="TOPRIGHT" x="-22" y="-8"/>
+						<Anchor point="BOTTOMRIGHT" x="-3" y="7"/>
 					</Anchors>
 					<TexCoords left="0.5" right="1" top="0.1" bottom="0.9"/>
 					<Color r="1" g="1" b="1" a="0.5"/>
@@ -982,8 +1114,8 @@
 		<Frames >
 			<Frame name="$parentHighlight" enableMouse="false" inherits="SecureFrameTemplate" hidden="false" parentKey="highlight" frameStrata="LOW">
 				<Anchors>
-					<Anchor point="TOPLEFT" x="3" y="-4"/>
-					<Anchor point="BOTTOMRIGHT" x="-3" y="3"/>
+					<Anchor point="TOPLEFT" x="3" y="-8"/>
+					<Anchor point="BOTTOMRIGHT" x="-3" y="7"/>
 				</Anchors>
 				<Layers>
 					<Layer level="overlay">

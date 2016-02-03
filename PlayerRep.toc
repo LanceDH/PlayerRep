@@ -2,7 +2,7 @@
 ## Title: PlayerRep
 ## Notes: Keep track of what you think of the people you meet.
 ## Author: LanceDH
-## Version: 6.2.01
+## Version: 6.2.02
 ## OptionalDeps: Ace3
 ## SavedVariables: PrepDB
 ## SavedVariablesPerCharacter: PREP_SavedData

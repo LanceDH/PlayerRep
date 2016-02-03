@@ -4,22 +4,25 @@
 ----------------------------------------
 
 local addonName, _addonData = ...;
+local _version = "";
 
 local AceGUI = LibStub("AceGUI-3.0");
 local PlayerRep = LibStub("AceAddon-3.0"):NewAddon("PlayerRep")
-
-local a = time();
 
 local _db = nil;
 
 local defaults = {
 	global = {
+		
 		playersMet = {},
 		options = {
 			formatDate = false;
 			formatTime = false;
 			showPopup = true;
+			popupSound = true;
 			saveTime = 86400;
+			storageLimit = 10000;
+			version = "";
 		}
 	}
 }
@@ -28,43 +31,60 @@ local _options = {
 			formatDate = false;
 			formatTime = false;
 			showPopup = true;
+			popupSound = true;
 			saveTime = 86400;
+			storageLimit = 10000;
+			version = "";
 		}
 
-local _playersMet = {};
+local _allSavedPlayers = {};
+local _benefitionalPlayers = {};
 local _currentGroup = {};
 local _newGroup = {};
 local _openedDuringCombat = false;
 local _dateTimeFormat = "";
+local _inLoadingScreen = true;
 
 _addonData.variables = {}
-
 _addonData.help = {}
 local _help = _addonData.help;
 
 local DISPLAY_MET = 0;
 local DISPLAY_LIKE = 1;
-local DISPLAY_DISLIKE = 2;
+local DISPLAY_NOTE = 2;
+local DISPLAY_ALL = 4;
 local DISPLAY_DETAILS = 3;
 
 local PLAYERS_PER_PAGE = 10;
+local STORAGE_MAX = 10000;
 local CUSTOMPATH = "Interface/AddOns/".. addonName .."/Images/"
 
 local FORMAT_DATE_EU = "%d/%m/%Y";
 local FORMAT_DATE_US = "%m/%d/%Y";
 local FORMAT_TIME_24 = "%H:%M:%S";
 local FORMAT_TIME_12 = "%I:%M:%S %p";
+local FORMAT_STARNOTE = "Starred and noted %s";
+local FORMAT_STAR = "Starred %s";
+local FORMAT_NOTE = "Added note to %s";
+local FORMAT_ADDED = "Added %s";
 
-local HELP_INFO_MAIN = "As you join a party or a raid group you meet new people which will be added to this list.\n\nYou can like or dislike players for their behaviour and add a note.\n\nLiked or disliked players are saved while neutral players will disappear over time.\n\n"
-local HELP_INFO_TABS = "Over time, players in the list of people you met will dissapear.\n\nPlayers you liked of disliked will be stored in their respective tabs until you decide to make them neutral again.\n\n";
-local ERROR_OPEN_IN_COMBAT = "|cFFFFD100WIP:|r |cFFFF5555Can't open that during combat. It will open once you leave combat.|r";
-local TOOLTIP_FRIEND_ICON = "Players met.";
+local TOOLTIP_OPTION_SAVETIME = "The time met players will\n be shown for (in sec).";
+local TOOLTIP_OPTION_STORAGE = "Limit of how many players will be saved.\nPassing this limit results in the players not\n seen the longest being deleted.\nA large storage can result in small fps drops.\nRecommended: 10,000";
+
+local HELP_INFO_MAIN = "As you join a party or a raid groups, you meet new people which will be added to this list.\n\nYou can star players for good behaviour or skill or add a note to remember them by.\n"
+local HELP_INFO_TABS = "Over time, met players will become hidden.\n\nPlayers you starred of added a note for, will be stored in their respective tabs until you decide to remove the star or note.\n\nAll players, including older ones, can also be found by clicking the time icon on the right.\n";
+local ERROR_OPEN_IN_COMBAT = "|cFFFFD100PREP:|r |cFFFF5555Can't open that during combat. It will open once you leave combat.|r";
+local TOOLTIP_FRIEND_ICON = "Open PlayerRep";
+local ERROR_INVALID_TARGET = "|cFFFFD100PREP:|r Could not add note to that target.";
+local COLOR_GREEN = "|cFF00FF00";
+local COLOR_ORANGE = "|cFFFFA500";
+local COLOR_RED = "|cFFFF0000";
 
 local _helpPlate = {
 	FramePos = { x = 5,	y = -25 },
 	FrameSize = { width = 440, height = 495	},
-	[1] = { ButtonPos = { x = 200,	y = -200}, HighLightBox = { x = 20, y = -85, width = 405, height = 420 }, ToolTipDir = "DOWN", ToolTipText = HELP_INFO_MAIN },
-	[2] = { ButtonPos = { x = 340,	y = -30}, HighLightBox = { x = 60, y = -30, width = 335, height = 45 }, ToolTipDir = "DOWN", ToolTipText = HELP_INFO_TABS }
+	[1] = { ButtonPos = { x = 200,	y = -200}, HighLightBox = { x = 40, y = -85, width = 365, height = 395 }, ToolTipDir = "DOWN", ToolTipText = HELP_INFO_MAIN },
+	[2] = { ButtonPos = { x = 340,	y = -30}, HighLightBox = { x = 75, y = -30, width = 320, height = 45 }, ToolTipDir = "DOWN", ToolTipText = HELP_INFO_TABS }
 }
 
 local function FormatSeconds(secs)
@@ -88,20 +108,111 @@ local function FormatSeconds(secs)
 	return text;
 end
 
+
+local function CountStoredPlayers()
+	local count = 0;
+	for k, v in pairs(_allSavedPlayers) do
+		count = count + 1;
+	end
+	return count;
+end
+
+local function SortPlayerList(list)
+	-- sort by date, then times met, then name
+	table.sort(list, function(a, b) 
+		if a.latestStamp == b.latestStamp then
+			if a.timesMet == b.timesMet then
+				return a.name < b.name;
+			end
+			return a.timesMet > b.timesMet;
+		end
+		return a.latestStamp > b.latestStamp
+	end);
+end
+
+local function SortForRemoval(list)
+	-- more to least important
+	-- starred > noted > met multiple times > date
+	table.sort(list, function(a, b) 
+		if (a.score == 1 and b.score == 1) or (a.score == 0 and b.score == 0) then
+			if a.note == nil then
+				a.note = "";
+			end
+			if b.note == nil then
+				b.note = "";
+			end
+		
+			if (a.note == b.note) or ( a.note == "" and b.note == "") then
+			
+				if a.timesMet == b.timesMet then
+					return a.latestStamp > b.latestStamp;
+				end
+				return a.timesMet > b.timesMet;
+			end
+			
+			return a.note > b.note;
+		end
+		return a.score > b.score
+	end);
+end
+
+local function PlayerIsInCurrentGroup(player)
+	for k, lPlayer in ipairs(_currentGroup) do
+		if player.name == lPlayer.name then
+			return true;
+		end
+	end
+	return false;
+end
+
+local function CheckOverflow()
+	local storedCount = CountStoredPlayers()
+	if storedCount < _options.storageLimit + 1 then return; end
+	local nrToDelete = storedCount - _options.storageLimit - 1;
+	
+	local list = {};
+	for k, player in pairs(_allSavedPlayers) do
+		table.insert(list, player);
+	end
+	SortForRemoval(list);
+	
+	local l = nil;
+	for i=#list, #list-nrToDelete, -1 do
+		l = list[i];
+		_allSavedPlayers["" .. l.name] = nil;
+	end
+end
+
+local function UpdateStorageCounter(count)
+	if count == nil then
+		count = CountStoredPlayers();
+	end
+	
+	local color = COLOR_GREEN;
+	if _options.storageLimit - count < 10 then
+		color = COLOR_RED;
+	elseif _options.storageLimit - count < 500 then
+		color = COLOR_ORANGE;
+	end
+	PREP_Options.storageLimitText:SetText(color .. count .. " |r/ " .. _options.storageLimit);
+end
+
 local function UpdateShowButtons()
 
 	local likeCount = 0;
-	local dislikeCount = 0;
+	local oldsaves = CountStoredPlayers();
 	local neutralCount = 0;
+	local notedCount = 0;
 	local now = time();
-	for k, player in ipairs(_playersMet) do
+	for k, player in ipairs(_benefitionalPlayers) do
+		if now - player.latestStamp < _options.saveTime then
+			neutralCount = neutralCount + 1;
+		end
 		if player.score > 0 then
 			likeCount = likeCount + 1;
-		elseif player.score < 0 then
-			dislikeCount = dislikeCount + 1;
 		end
-		if now - player.latestStamp <= _options.saveTime then
-			neutralCount = neutralCount + 1;
+		if (player.note ~= "" and player.note ~= nil) then
+			notedCount = notedCount + 1;
 		end
 	end
 	
@@ -111,10 +222,29 @@ local function UpdateShowButtons()
 	btn = PREP_PlayerMetContainer.showLikeButton;
 	btn.count:SetText(likeCount);
 	
-	btn = PREP_PlayerMetContainer.showDislikeButton;
-	btn.count:SetText(dislikeCount);
+	btn = PREP_PlayerMetContainer.showNotedButton;
+	btn.count:SetText(notedCount);
 
-	return neutralCount, likeCount, dislikeCount;
+	return neutralCount, likeCount, oldsaves, notedCount;
+end
+
+local function SetPageDisplay(display)
+	if display == DISPLAY_MET then
+		PREP_PlayerMetContainer.showMetButton.select:Show();
+	else
+		PREP_PlayerMetContainer.showMetButton.select:Hide();
+	end
+	if display == DISPLAY_LIKE then
+		PREP_PlayerMetContainer.showLikeButton.select:Show();
+	else
+		PREP_PlayerMetContainer.showLikeButton.select:Hide();
+	end
+	if display == DISPLAY_NOTE then
+		PREP_PlayerMetContainer.showNotedButton.select:Show();
+	else
+		PREP_PlayerMetContainer.showNotedButton.select:Hide();
+	end
+	PREP_PlayerMetContainer.display = display;
 end
 
 function PREP_ShowHelpUnlocks(show)
@@ -129,6 +259,7 @@ function PREP_ShowHelpUnlocks(show)
 				["class"] = "Shaman",
 				["score"] = 1,
 				["latestStamp"] = now,
+				["timesMet"] = 5,
 				["tutorial"] = true,
 			},
 			{
@@ -138,8 +269,9 @@ function PREP_ShowHelpUnlocks(show)
 				["sex"] = "Female",
 				["firstStamp"] = now,
 				["class"] = "Warlock",
-				["score"] = -1,
+				["score"] = 0,
 				["latestStamp"] = now,
+				["timesMet"] = 11,
 				["tutorial"] = true,
 			},
 			{
@@ -151,22 +283,23 @@ function PREP_ShowHelpUnlocks(show)
 				["class"] = "Paladin",
 				["score"] = 0,
 				["latestStamp"] = now,
+				["timesMet"] = 3,
 				["tutorial"] = true,
 			}
 			}
 			
 	if show then 
 		local n, l, d = UpdateShowButtons();
-		PREP_PlayerMetContainer.display = DISPLAY_MET;
+		SetPageDisplay(DISPLAY_MET);
 		if (n == 0) then
 			for k, p in ipairs(tutPlayers) do
-				table.insert(_playersMet, p);
+				table.insert(_benefitionalPlayers, p);
 			end
 		end
 	else
-		for i=#_playersMet,1,-1 do
-			if _playersMet[i].tutorial then
-				table.remove(_playersMet, i);
+		for i=#_benefitionalPlayers,1,-1 do
+			if _benefitionalPlayers[i].tutorial then
+				table.remove(_benefitionalPlayers, i);
 			end
 		end
 	end
@@ -192,6 +325,8 @@ local function SetDateTimeFormat(useUS, use12)
 end
 
 function PREP_TutorialButton_OnClick()
+	PREP_Options:Hide();
+
 	if PREP_HelpFrame:IsShown() then
 		_help:HideTutorial();
 		PREP_ShowHelpUnlocks(false);
@@ -259,43 +394,49 @@ function PREP_OptionsFrame_EnableBack(enabled)
 		button:EnableMouse(enabled);
 		button.upvote:EnableMouse(enabled);
 		button.upvote.texture:SetVertexColor(color, color, color, 1);
-		button.downvote:EnableMouse(enabled);
-		button.downvote.texture:SetVertexColor(color, color, color, 1);
+		--button.downvote:EnableMouse(enabled);
+		--button.downvote.texture:SetVertexColor(color, color, color, 1);
 		button.noteBtn:EnableMouse(enabled);
 		button.noteBtn.texture:SetVertexColor(color, color, color, 1);
 		button.iconRace:SetVertexColor(color, color, color, 1);
 		button.iconClass:SetVertexColor(color, color, color, 1);
 		button.scorePositive:SetVertexColor(0, color, 0, 0.2);
-		button.scoreNegative:SetVertexColor(color, 0, color, 0.2);
+		
 		if enabled then
 			button.name:SetTextColor(1.0, 0.82, 0, 1);
+			button.encounters:SetTextColor(1.0, 0.82, 0, 1);
+			button.partyHighlight:SetVertexColor(1, 1, 1, 0.2);
 		else
 			button.name:SetTextColor(0.5, 0.42, 0, 1);
+			button.encounters:SetTextColor(0.5, 0.42, 0, 1);
+			button.partyHighlight:SetVertexColor(1, 1, 1, 0.1);
 		end
 	end
 
 	-- tab buttons
 	PREP_PlayerMetContainer.showMetButton:EnableMouse(enabled);
 	PREP_PlayerMetContainer.showLikeButton:EnableMouse(enabled);
-	PREP_PlayerMetContainer.showDislikeButton:EnableMouse(enabled);
+	PREP_PlayerMetContainer.showAllButton:EnableMouse(enabled);
 	PREP_PlayerMetContainer.showMetButton.bg:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.showLikeButton.bg:SetVertexColor(color, color, color, 1);
-	PREP_PlayerMetContainer.showDislikeButton.bg:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showNotedButton.bg:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.showMetButton.icon:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showLikeButton.icon:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showNotedButton.icon:SetVertexColor(color, color, color, 1);
+	PREP_PlayerMetContainer.showAllButton.normal:SetVertexColor(color, color, color, 1);
+	
+	PREP_PlayerMetContainer.showMetButton.select:SetVertexColor(color, color, color, 0.5);
+	PREP_PlayerMetContainer.showLikeButton.select:SetVertexColor(color, color, color, 0.5);
+	PREP_PlayerMetContainer.showNotedButton.select:SetVertexColor(color, color, color, 0.5);
 	if enabled then
-		PREP_PlayerMetContainer.showLikeButton.icon:SetVertexColor(0, 0.8, 0, 1);
-		PREP_PlayerMetContainer.showDislikeButton.icon:SetVertexColor(0.8, 0, 0, 1);
-		
 		PREP_PlayerMetContainer.showMetButton.count:SetVertexColor(1.0, 0.82, 0, 1);
 		PREP_PlayerMetContainer.showLikeButton.count:SetVertexColor(1.0, 0.82, 0, 1);
-		PREP_PlayerMetContainer.showDislikeButton.count:SetVertexColor(1.0, 0.82, 0, 1);
+		PREP_PlayerMetContainer.showNotedButton.count:SetVertexColor(1.0, 0.82, 0, 1);
+
 	else
-		PREP_PlayerMetContainer.showLikeButton.icon:SetVertexColor(0, 0.4, 0, 1);
-		PREP_PlayerMetContainer.showDislikeButton.icon:SetVertexColor(0.4, 0, 0, 1);
-		
 		PREP_PlayerMetContainer.showMetButton.count:SetVertexColor(0.5, 0.42, 0, 1);
 		PREP_PlayerMetContainer.showLikeButton.count:SetVertexColor(0.5, 0.42, 0, 1);
-		PREP_PlayerMetContainer.showDislikeButton.count:SetVertexColor(0.5, 0.42, 0, 1);
+		PREP_PlayerMetContainer.showNotedButton.count:SetVertexColor(0.5, 0.42, 0, 1);
 	end
 	
 	-- search box
@@ -305,11 +446,6 @@ function PREP_OptionsFrame_EnableBack(enabled)
 	PREP_PlayerMetContainer.search.editbox.Middle:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.search.editbox.Right:SetVertexColor(color, color, color, 1);
 	
-	
-	-- clear button
-	PREP_PlayerMetContainer.Clear:EnableMouse(enabled);
-	PREP_PlayerMetContainer.Clear.normal:SetVertexColor(color, color, color, 1);
-	PREP_PlayerMetContainer.Clear.disabled:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.Navigation.Prev:EnableMouse(enabled);
 	PREP_PlayerMetContainer.Navigation.Prev.normal:SetVertexColor(color, color, color, 1);
 	PREP_PlayerMetContainer.Navigation.Prev.disabled:SetVertexColor(color, color, color, 1);
@@ -323,7 +459,6 @@ function PREP_OptionsFrame_EnableBack(enabled)
 	PREP_PlayerDetails.iconRace:SetVertexColor(color, color, color, 1);
 	PREP_PlayerDetails.iconClass:SetVertexColor(color, color, color, 1);
 	PREP_PlayerDetails.scorePositive:SetVertexColor(0, color, 0, 0.2);
-	PREP_PlayerDetails.scoreNegative:SetVertexColor(color, 0, color, 0.2);
 	if enabled then
 		PREP_PlayerDetails.name:SetTextColor(1.0, 0.82, 0, 1);
 		PREP_PlayerDetails.txt01:SetTextColor(1.0, 0.82, 0, 1);
@@ -349,7 +484,7 @@ function PREP_PrevPageButton_OnClick()
 end
 
 function PREP_NextPageButton_OnClick()
-	if (PREP_PlayerMetContainer.CurrentPage >= ceil(#_playersMet/PLAYERS_PER_PAGE)) then return; end
+	if (PREP_PlayerMetContainer.CurrentPage >= PREP_UpdateNavigation()) then return; end
 	PlaySound("igAbiliityPageTurn");
 	PREP_PlayerMetContainer.CurrentPage = PREP_PlayerMetContainer.CurrentPage + 1;
 	PREP_PlayerMetContainer.Navigation.Text:SetText("Page ".. PREP_PlayerMetContainer.CurrentPage);
@@ -366,7 +501,7 @@ end
 
 function PREP_UpdateNavigation()
 
-	local n, l, d = UpdateShowButtons()
+	local n, l, d, noted = UpdateShowButtons()
 
 	local totalPages = 0;
 	
@@ -374,7 +509,9 @@ function PREP_UpdateNavigation()
 		totalPages = ceil(n/PLAYERS_PER_PAGE);
 	elseif (PREP_PlayerMetContainer.display == DISPLAY_LIKE) then
 		totalPages = ceil(l/PLAYERS_PER_PAGE);
-	elseif (PREP_PlayerMetContainer.display == DISPLAY_DISLIKE) then
+	elseif (PREP_PlayerMetContainer.display == DISPLAY_NOTE) then
+		totalPages = ceil(noted/PLAYERS_PER_PAGE);
+	elseif (PREP_PlayerMetContainer.display == DISPLAY_ALL) then
 		totalPages = ceil(d/PLAYERS_PER_PAGE);
 	end
 
@@ -397,24 +534,52 @@ function PREP_UpdateNavigation()
 		PREP_PlayerMetContainer.Navigation.Next:Disable();
 	end
 
+	return totalPages;
+	
 end
 
-local function ChangePlayerScore(button, change)
+local function ChangePlayerScore(button, starred)
 	local parent = button:GetParent();
+	
+	local player = nil;
 
-	for k, player in ipairs(_playersMet) do
-		if player.name == parent.name:GetText() then
-			player.score = player.score + change;
-			
-			if (player.score < -1 or player.score > 1) then
-				player.score = 0;
-			end
+	for k, p in ipairs(_benefitionalPlayers) do
+		if p.name == parent.player.name then
+			player = p;
 			break;
 		end
 	end
 	
+	-- player not in benefitional yet
+	if player == nil then
+		player = _allSavedPlayers["" .. parent.player.name];
+		table.insert(_benefitionalPlayers, player);
+	end
+	
+	player.score = starred and 1 or 0;
+	
 	PREP_UpdateContainer();
 	
+end
+
+local function ChangePlayerNote(button, note)
+	local player = nil;
+	
+	for k, p in ipairs(_benefitionalPlayers) do
+		if p.name == button.player.name then
+			player = p;
+			break;
+		end
+	end
+	
+	-- player not in benefitional yet
+	if player == nil then
+		player = _allSavedPlayers["" .. button.player.name];
+		table.insert(_benefitionalPlayers, player);
+	end
+	
+	player.note = note;
+	PREP_UpdateContainer();
 end
 
 local function ShowPlayerDetails(player)
@@ -435,16 +600,39 @@ local function ShowPlayerDetails(player)
 	PREP_PlayerDetails.iconRace:SetTexture(path);
 	
 	PREP_PlayerDetails.scorePositive:Hide();
-	PREP_PlayerDetails.scoreNegative:Hide();
+	PREP_PlayerDetails.partyHighlight:Hide();
 	if player.score > 0 then
 			PREP_PlayerDetails.scorePositive:Show();
 			PREP_PlayerDetails.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Up");
 		elseif player.score < 0 then
-			PREP_PlayerDetails.scoreNegative:Show();
+			PREP_PlayerDetails.partyHighlight:Show();
 			PREP_PlayerDetails.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Up");
 		end
 	
 	PREP_PlayerDetails.editBox:SetText(player.note);
+end
+
+function PREP_HideThingsFromAllPlayerButtons(currentButton)
+	for i=1, PLAYERS_PER_PAGE do
+		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
+		if button ~= currentButton then
+			button:UnlockHighlight();
+			--button.befriend:Hide();
+			button.noteBtn:Hide();
+			button.inPartyBtn:Hide();
+		end
+	end
+end
+
+function PREP_EnterPlayerButton(self)
+	PREP_HideThingsFromAllPlayerButtons(self);
+
+	self:LockHighlight();
+	--self.befriend:Show();
+	self.noteBtn:Show();
+	if	self.partyHighlight:IsShown() then
+		self.inPartyBtn:Show();
+	end
 end
 
 function PREP_CreateContainer()
@@ -461,54 +649,65 @@ function PREP_CreateContainer()
 	table.insert(UISpecialFrames, "PREP_PlayerMetContainer")
 	
 	PREP_PlayerMetContainer.showMetButton:SetScript("OnClick", function(self)
-									PREP_PlayerMetContainer.display = DISPLAY_MET;
+									SetPageDisplay(DISPLAY_MET);
+									--PREP_PlayerMetContainer.display = DISPLAY_MET;
 									PREP_PlayerMetContainer.CurrentPage = 1;
 									PREP_UpdateContainer(); 
 								end);
 	PREP_PlayerMetContainer.showLikeButton:SetScript("OnClick", function(self)
-									PREP_PlayerMetContainer.display = DISPLAY_LIKE;
+									--PREP_PlayerMetContainer.display = DISPLAY_LIKE;
+									SetPageDisplay(DISPLAY_LIKE);
 									PREP_PlayerMetContainer.CurrentPage = 1;
 									PREP_UpdateContainer(); 
 								end);
-	PREP_PlayerMetContainer.showDislikeButton:SetScript("OnClick", function(self)
-									PREP_PlayerMetContainer.display = DISPLAY_DISLIKE;
+	PREP_PlayerMetContainer.showNotedButton:SetScript("OnClick", function(self)
+									--PREP_PlayerMetContainer.display = DISPLAY_NOTE;
+									SetPageDisplay(DISPLAY_NOTE);
+									PREP_PlayerMetContainer.CurrentPage = 1;
+									PREP_UpdateContainer(); 
+								end);
+	PREP_PlayerMetContainer.showAllButton:SetScript("OnClick", function(self)
+									--PREP_PlayerMetContainer.display = DISPLAY_ALL;
+									SetPageDisplay(DISPLAY_ALL);
 									PREP_PlayerMetContainer.CurrentPage = 1;
 									PREP_UpdateContainer(); 
 								end);
 	
 	PREP_PlayerMetContainer.CurrentPage = 1;
-	PREP_PlayerMetContainer.display = DISPLAY_MET;
+	--PREP_PlayerMetContainer.display = DISPLAY_MET;
+	SetPageDisplay(DISPLAY_MET);
 
 	--PREP_PlayerMetContainerInsetBg:Hide();
 	--PREP_PlayerMetContainerBg:Hide();
 	
 	for i=1, PLAYERS_PER_PAGE do
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
-		button.upvote:SetScript("OnClick", function(self) ChangePlayerScore(self, 1) end);
-		button.downvote:SetScript("OnClick", function(self) ChangePlayerScore(self, -1) end);
+		
+		button.upvote:SetScript("OnClick", function(self) ChangePlayerScore(self, self:GetChecked()) end);
+		--button.downvote:SetScript("OnClick", function(self) ChangePlayerScore(self, -1) end);
 		
 		button:SetScript("OnEnter", function(self) 
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
 				GameTooltip:SetText(self.player.name);
 				GameTooltip:AddDoubleLine("Seen First", date(_dateTimeFormat, self.player.firstStamp),1 ,1 ,1 ,1 ,1 ,1);
 				GameTooltip:AddDoubleLine("Seen Last", date(_dateTimeFormat, self.player.latestStamp),1 ,1 ,1 ,1 ,1 ,1);
+				GameTooltip:AddDoubleLine("Times Met", self.player.timesMet,1 ,1 ,1 ,1 ,1 ,1);
 				GameTooltip:AddLine(self.player.note ,1 ,0.82 ,0 ,true);
 				GameTooltip:Show();
+				
+				PREP_EnterPlayerButton(self);
 			end);
-		button:SetScript("OnLeave", function(self) GameTooltip:Hide(); end);
+		button:SetScript("OnLeave", function(self) 
+				PREP_HideThingsFromAllPlayerButtons(currentButton);
+				GameTooltip:Hide();
+			end);
 		
-		--button:SetScript("OnClick", function(self) 
-		--		PREP_PlayerMetContainer.display = DISPLAY_DETAILS;
-		--		ShowPlayerDetails(self.player);
-		--		PREP_UpdateContainer();
-		--	end);
-					
 		button.gui = AceGUI:Create("SimpleGroup");
-		button.gui:SetWidth(165);
+		button.gui:SetWidth(175);
 		button.gui:SetHeight(15);
 		button.gui:SetLayout("flow");
 		button.gui.frame:SetParent(button);
-		button.gui.frame:SetPoint("BOTTOMLEFT", 130, 0);
+		button.gui.frame:SetPoint("BOTTOMLEFT", 120, -1);
 		
 		button.editBox = AceGUI:Create("EditBox");
 		button.editBox:SetLabel("");
@@ -521,7 +720,7 @@ function PREP_CreateContainer()
 		button.editBox.editbox:SetFontObject("GameFontNormal");
 		button.editBox.editbox:EnableMouse(false);
 		button.editBox:SetCallback("OnEnterPressed", function(__,__, value)
-				button.player.note = value;
+				ChangePlayerNote(button, value);
 				button.editBox.editbox:SetCursorPosition(0);
 				button.editBox.editbox:EnableMouse(false);
 				button.editBox.editbox:ClearFocus();
@@ -538,6 +737,8 @@ function PREP_CreateContainer()
 				button.editBox.editbox:SetCursorPosition(button.editBox.editbox:GetNumLetters());
 			end);
 	end
+	-- Hide befriend and other buttons from all buttons
+	PREP_HideThingsFromAllPlayerButtons();
 	
 	-- Note on player details
 	PREP_PlayerDetails.gui = AceGUI:Create("SimpleGroup");
@@ -583,6 +784,9 @@ function PREP_CreateContainer()
 	PREP_PlayerMetContainer.search:SetCallback("OnTextChanged", function(__,__, value)
 			PREP_UpdateContainer();
 		end)
+	PREP_PlayerMetContainer.search:SetCallback("OnEnterPressed", function(__,__, value)
+			PREP_PlayerMetContainer.search.editbox:ClearFocus();
+		end)
 
 	
 	PREP_PlayerMetContainer.gui:AddChild(PREP_PlayerMetContainer.search);
@@ -605,7 +809,7 @@ function PREP_CreateContainer()
 		
 	PREP_Options.saveTime = AceGUI:Create("EditBox");
 	PREP_Options.saveTime:SetRelativeWidth(1);
-	PREP_Options.saveTime:SetLabel("Save time");
+	PREP_Options.saveTime:SetLabel("Recently met time");
 	PREP_Options.saveTime:SetText("");
 	PREP_Options.saveTime:DisableButton(true);
 	PREP_Options.saveTime:SetCallback("OnEnterPressed", function(__,__, value)
@@ -615,10 +819,11 @@ function PREP_CreateContainer()
 			else
 				PREP_Options.saveTime:SetText(_options.saveTime);
 			end;
+			PREP_Options.saveTime.editbox:ClearFocus();
 		end)
 	PREP_Options.saveTime.editbox:SetScript("OnEnter", function(self) 
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
-			GameTooltip:SetText("The time neutral players will\n be saved for (in sec).");
+			GameTooltip:SetText(TOOLTIP_OPTION_SAVETIME);
 		end )
 	PREP_Options.saveTime.editbox:SetScript("OnLeave", function(self) 
 			GameTooltip:Hide();
@@ -626,17 +831,62 @@ function PREP_CreateContainer()
 		
 	PREP_Options.gui:AddChild(PREP_Options.saveTime);
 	
+	-- Options storage limit
+	PREP_Options.gui2 = AceGUI:Create("SimpleGroup");
+	PREP_Options.gui2:SetWidth(100);
+	PREP_Options.gui2:SetHeight(50);
+	PREP_Options.gui2:SetLayout("flow");
+	PREP_Options.gui2.frame:SetParent(PREP_Options);
+	PREP_Options.gui2.frame:SetPoint("TOPLEFT", PREP_Options.format, "BOTTOMLEFT" ,  0, 0);
+		
+	PREP_Options.storageLimit = AceGUI:Create("EditBox");
+	PREP_Options.storageLimit:SetRelativeWidth(1);
+	PREP_Options.storageLimit:SetLabel("Storage Limit");
+	PREP_Options.storageLimit:SetText("");
+	PREP_Options.storageLimit:DisableButton(true);
+	PREP_Options.storageLimit:SetCallback("OnEnterPressed", function(__,__, value)
+			if tonumber(value) ~= nil then
+				_options.storageLimit = tonumber(value);
+				CheckOverflow();
+				UpdateStorageCounter();
+				
+			else
+				PREP_Options.storageLimit:SetText(_options.storageLimit);
+			end;
+			PREP_Options.storageLimit.editbox:ClearFocus();
+		end)
+	PREP_Options.storageLimit.editbox:SetScript("OnEnter", function(self) 
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+			GameTooltip:SetText(TOOLTIP_OPTION_STORAGE);
+		end )
+	PREP_Options.storageLimit.editbox:SetScript("OnLeave", function(self) 
+			GameTooltip:Hide();
+		end )
+		
+	PREP_Options.gui2:AddChild(PREP_Options.storageLimit);
+	
 	PREP_Options.showPopup:SetScript("OnClick", function(self) 
 			_options.showPopup = self:GetChecked();
+			if self:GetChecked() then
+				PREP_Options.popupSound:Enable();
+			else
+				PREP_Options.popupSound:Disable();
+			end
+		end );
+	PREP_Options.popupSound:SetScript("OnClick", function(self) 
+			_options.popupSound = self:GetChecked();
+			if _options.popupSound then
+				PlaySound("FX_Shimmer_Whoosh_Generic");
+			end
 		end );
 	PREP_Options.format.date:SetScript("OnClick", function(self) 
 			SetDateTimeFormat(self:GetChecked(), PREP_Options.format.time:GetChecked());
-			ShowPlayerDetails(PREP_PlayerDetails.player);
+			--ShowPlayerDetails(PREP_PlayerDetails.player);
 			_options.formatDate = self:GetChecked();
 		end );
 	PREP_Options.format.time:SetScript("OnClick", function(self) 
-			SetDateTimeFormat(PREP_Options.format.date:GetChecked(), self);
-			ShowPlayerDetails(PREP_PlayerDetails.player);
+			SetDateTimeFormat(PREP_Options.format.date:GetChecked(), self:GetChecked());
+			--ShowPlayerDetails(PREP_PlayerDetails.player);
 			_options.formatTime = self:GetChecked();
 		end );
 
@@ -645,12 +895,28 @@ function PREP_CreateContainer()
 	return L_BGS_ContainerBG
 end
 
-local function ShowPopUp(liked, disliked)
+local function ShowPopUp(liked, notes, met)
 	if (not _options.showPopup) then return; end
+	if InCombatLockdown() then 
+		PREP_AlertPopup.shownInCombat = true;
+		PREP_AlertPopup.combatFunc = function() ShowPopUp(liked, notes, met) end;
+		return; 
+	end
+	if _inLoadingScreen then
+		PREP_AlertPopup.shownInLoading = true;
+		PREP_AlertPopup.combatFunc = function() ShowPopUp(liked, notes, met) end;
+		return; 
+	end
+	
 	PREP_AlertPopup:Show();
+	if _options.popupSound then
+		PlaySound("FX_Shimmer_Whoosh_Generic");
+	end
 	PREP_AlertPopup:SetAlpha(1);
 	PREP_AlertPopup.liked:SetText(liked);
-	PREP_AlertPopup.disliked:SetText(disliked);
+	PREP_AlertPopup.notes:SetText(notes);
+	PREP_AlertPopup.met:SetText(met);
+
 end
 
 local function CreatePopupAnimation(self)
@@ -676,6 +942,15 @@ local function PlayPopupAnimation(self)
 	self.animationA.alpha:SetDuration(0.2);
 	self.animationB.alpha:SetDuration(0.3);
 	self.animationA:Play(true);
+end
+
+local function StopPopupAnimation(self)
+	self:Hide();
+	if not self.animationA then
+		return;
+	end
+	self.animationA:Stop();
+	self.animationB:Stop();
 end
 
 local function CreateHideAnimation(self)
@@ -712,6 +987,10 @@ local function PREP_CreatePopup()
 			PlayPopupAnimation(self);
 			self.highlight:Show();
 			self.highlight:SetAlpha(1);
+		end );
+		
+	PREP_AlertPopup:SetScript("OnHide", function(self) 
+			PREP_AlertPopup.showTime = 0;
 		end );
 	
 	PREP_AlertPopup.showTime = 0;
@@ -775,47 +1054,50 @@ local function ResetButtons()
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(i)];
 		button.player = nil;
 		button.name:SetText("PlayerName"..i);
+		button.encounters:SetText("99+");
 		button.scorePositive:Hide();
-		button.scoreNegative:Hide();
-		button.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Disabled");
-		button.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Disabled");
+		button.partyHighlight:Hide();
+		button.upvote:SetChecked(false);
+		--button.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Disabled");
+		button.iconRace:SetTexture("Interface/PaperDoll/UI-PaperDoll-Slot-Head");
+		button.iconClass:SetTexture("Interface/PaperDoll/UI-PaperDoll-Slot-MainHand");
 		button:Hide();
 
 	end
-	PREP_UpdateNavigation();
-end
-
-local function SortPlayerList()
-	table.sort(_playersMet, function(a, b) 
-		if a.latestStamp == b.latestStamp then
-			return a.name < b.name;
-		end
-		return a.latestStamp > b.latestStamp
-	end);
+	--PREP_UpdateNavigation();
 end
 
 local function GetPlayersToDisplay(search)
 	local temp = {};
+	local relevant = {}
+	for k, player in pairs(_benefitionalPlayers) do
+		if player.race ~= nil or player.class ~= nil then
+			table.insert(relevant, player);
+		end
+	end
+	
 	if PREP_PlayerMetContainer.display == DISPLAY_MET then
 		local currentTime = time();
-		for k, player in pairs(_playersMet) do
-			if(currentTime - player.latestStamp < _options.saveTime) then
+		for k, player in pairs(relevant) do
+			if currentTime - player.latestStamp < _options.saveTime then
 				table.insert(temp, player);
-			else
-				break;
 			end
 		end
 	elseif PREP_PlayerMetContainer.display == DISPLAY_LIKE then
-		for k, player in pairs(_playersMet) do
+		for k, player in pairs(relevant) do
 			if (player.score > 0) then
 				table.insert(temp, player);
 			end
 		end
-	elseif PREP_PlayerMetContainer.display == DISPLAY_DISLIKE then
-		for k, player in pairs(_playersMet) do
-			if (player.score < 0) then
+	elseif PREP_PlayerMetContainer.display == DISPLAY_NOTE then
+		for k, player in pairs(relevant) do
+			if (player.note ~= nil and player.note ~= "") then
 				table.insert(temp, player);
 			end
+		end
+	elseif PREP_PlayerMetContainer.display == DISPLAY_ALL then
+		for k, player in pairs(_allSavedPlayers) do
+				table.insert(temp, player);
 		end
 	end
 	
@@ -835,26 +1117,27 @@ end
 
 local function DeleteOldNeutralPlayers()
 	local currentTime = time();
-	for i=#_playersMet,1,-1 do
-		if currentTime - _playersMet[i].latestStamp > _options.saveTime then
-			if (_playersMet[i].score == 0) then
-				table.remove(_playersMet, i);
-			end
-		else
-			break;
+	for i=#_benefitionalPlayers,1,-1 do
+		if currentTime - _benefitionalPlayers[i].latestStamp > _options.saveTime and _benefitionalPlayers[i].score == 0 and (_benefitionalPlayers[i].note == "" or _benefitionalPlayers[i].note == nil)then
+			table.remove(_benefitionalPlayers, i);
 		end
 	end
 end
+
+
+
 
 function PREP_UpdateContainer()
 	
 	-- Only update when the main window is open
 	if (not PREP_PlayerMetContainer:IsShown()) then return; end
-	
+
 	ResetButtons();
-	SortPlayerList();
 	DeleteOldNeutralPlayers();
-	UpdateShowButtons();
+	local _, _, storage = UpdateShowButtons();
+	
+	-- update storage counter on options frame
+	UpdateStorageCounter(storage)
 
 	PREP_PlayerDetails:Hide();
 	if PREP_PlayerMetContainer.display == DISPLAY_DETAILS then
@@ -862,6 +1145,8 @@ function PREP_UpdateContainer()
 	end
 	
 	local playersToShow = GetPlayersToDisplay(PREP_PlayerMetContainer.search:GetText());
+	
+	SortPlayerList(playersToShow);
 	
 	local faction = UnitFactionGroup("player");
 	-- change neutral panda to horde because looks left... also FOR THE HORDE!
@@ -876,20 +1161,27 @@ function PREP_UpdateContainer()
 			
 		local button = _G["PREP_PlayerButton"..GetFullDoubleDigit(count)];
 		button.player = player;
+		
 
 		button:Show();
 		button.name:SetText(player.name);
-		button.iconClass:SetTexture("Interface/ICONS/ClassIcon_" .. string.gsub(player.class, " ", ""));
-		local path = CUSTOMPATH .. "Race_" .. player.race .. "_" .. player.sex;
-		path = player.race == "Pandaren" and path .. "_" .. faction or path;
-		button.iconRace:SetTexture(path);
+		button.encounters:SetText(player.timesMet < 100 and player.timesMet or "99+");
+		if(player.class ~= nil) then
+			button.iconClass:SetTexture("Interface/ICONS/ClassIcon_" .. string.gsub(player.class, " ", ""));
+		end
+		if(player.race ~= nil) then
+			local path = CUSTOMPATH .. "Race_" .. player.race .. "_" .. player.sex;
+			path = player.race == "Pandaren" and path .. "_" .. faction or path;
+			button.iconRace:SetTexture(path);
+		end
+		
+		if PlayerIsInCurrentGroup(player) then
+			button.partyHighlight:Show();
+		end
 		
 		if player.score > 0 then
 			button.scorePositive:Show();
-			button.upvote:SetNormalTexture("Interface/Buttons/Arrow-Up-Up");
-		elseif player.score < 0 then
-			button.scoreNegative:Show();
-			button.downvote:SetNormalTexture("Interface/Buttons/Arrow-Down-Up");
+			button.upvote:SetChecked(true);
 		end
 		
 		button.editBox:SetText(player.note);
@@ -902,7 +1194,7 @@ function PREP_UpdateContainer()
 end
 
 local function GetPlayerSave(name)
-	for k, player in ipairs(_playersMet) do
+	for k, player in ipairs(_benefitionalPlayers) do
 		if player.name == name then
 			player.latestStamp = time();
 			return player;
@@ -922,25 +1214,32 @@ local function IsInCurrentGroup(name)
 	return false;
 end
 
-local function CheckForNowPlayers()
+local function CheckForNewPlayers()
 	local liked = 0;
-	local disliked = 0;
+	local metBefore = 0;
+	local notes = 0;
 	
 	local playerSave = nil ;
 	
 	for k, player in ipairs(_newGroup) do
 		if (not IsInCurrentGroup(player.name)) then
-			playerSave = GetPlayerSave(player.name);
+			playerSave = _allSavedPlayers[""..player.name];
+			playerSave.timesMet = playerSave.timesMet + 1;
+			-- if more than 1 = met player before
+			if playerSave.timesMet > 1 then
+				metBefore = metBefore + 1;
+			end
 			if playerSave.score == 1 then
 				liked = liked + 1;
-			elseif playerSave.score == -1 then
-				disliked = disliked + 1;
+			end
+			if playerSave.note ~= nil then
+				notes = notes + 1;
 			end
 		end
 	end
 	
-	if liked > 0 or disliked > 0 then
-		ShowPopUp(liked, disliked);
+	if liked > 0 or notes > 0 or metBefore > 0 then
+		ShowPopUp(liked, notes, metBefore);
 	end
 	
 	_currentGroup = {};
@@ -948,37 +1247,88 @@ local function CheckForNowPlayers()
 		table.insert(_currentGroup, player);
 	end
 	_newGroup = {};
-	
 end
 
 local function AddPlayerToList(unit)
-	local temp = {};
-	temp.name = GetUnitName(unit, true);
-	
-	
-	if temp.name == "Unknown" then
+	local name = GetUnitName(unit, true);
+	if name == "Unknown" then
 		PREP_LoadFrame.time = 0;
 		PREP_LoadFrame.foundUnknown = true;
+		return nil;
+	end;
+	if (unit ~= "player" and name == GetUnitName("player", true)) or not UnitIsPlayer(unit) then
+		return nil;
 	end
+	name = string.find(name, "-") and name or name .. "-" .. GetRealmName();
+	local temp = {};
+	temp.name = name
 	
-	if temp.name == "Unknown" or (unit ~= "player" and temp.name == GetUnitName("player", true)) then
-		return;
-	end
-	-- if name doens't contain - for realm, add player realm.
-	temp.name = string.find(temp.name, "-") and temp.name or temp.name .. "-" .. GetRealmName();
+	
 	temp.class = UnitClass(unit);
 	temp.sex = UnitSex(unit) == 2 and "Male" or "Female";
 	temp.race = select(2, UnitRace(unit));
 	temp.firstStamp = time();
 	temp.latestStamp = time();
 	temp.score = 0;
+	temp.timesMet = unit == "target" and 1 or 0;
+	local save = _allSavedPlayers["" .. name];
+	if save == nil then
+		_allSavedPlayers["" .. name] = temp;
+	end
+	
 	local playerSave = GetPlayerSave(temp.name);
 	if playerSave == nil then
-		table.insert(_playersMet, temp);
+		table.insert(_benefitionalPlayers, _allSavedPlayers["" .. name]);
 	end
 	
 	table.insert(_newGroup, temp);
 	
+	PREP_UpdateContainer();
+	
+	return true;
+end
+
+local function AddTargetPlayer(star, note)
+	local name = GetUnitName("target", true);
+	-- don't want to check unknown or self
+	if name == "Unknown" or name == GetUnitName("player", true) then
+		return;
+	end
+	name = string.find(name, "-") and name or name .. "-" .. GetRealmName();
+	local player = _allSavedPlayers[""..name];
+	if player == nil then
+		if AddPlayerToList("target") == nil then
+			print(ERROR_INVALID_TARGET);
+			return;
+		end
+		player = _allSavedPlayers[""..name];
+	end
+	
+	-- Star if requested
+	if star then
+		player.score = 1;
+	end
+	
+	-- Add note if provided
+	if note ~= nil and note ~= "" then
+		if player.note == nil then
+			player.note = note;
+		else
+			player.note = player.note .. " - " .. note;
+		end
+	end
+	
+	if star and note ~= nil and note ~= "" then
+		print(string.format(FORMAT_STARNOTE, name));
+	elseif star then
+		print(string.format(FORMAT_STAR, name));
+	elseif note ~= nil and note ~= "" then
+		print(string.format(FORMAT_NOTE, name));
+	else
+		print(string.format(FORMAT_ADDED, name));
+	end
+	
+	CheckOverflow();
 	PREP_UpdateContainer();
 end
 
@@ -996,13 +1346,15 @@ local function AddInstance()
 		end
 	end
 	
-	CheckForNowPlayers(newGroup);
+	CheckForNewPlayers(newGroup);
+	CheckOverflow();
+	PREP_UpdateContainer();
 end
 
 function PREP_ClearNeutral()
-	for i=#_playersMet,1,-1 do
-		if _playersMet[i].score == 0 then
-			table.remove(_playersMet, i);
+	for i=#_benefitionalPlayers,1,-1 do
+		if _benefitionalPlayers[i].score == 0 then
+			table.remove(_benefitionalPlayers, i);
 		end
 	end
 	PREP_UpdateContainer();
@@ -1017,7 +1369,10 @@ PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_ENABLED");
 PREP_LoadFrame:RegisterEvent("PLAYER_REGEN_DISABLED");
 PREP_LoadFrame:RegisterEvent("ADDON_LOADED");
 PREP_LoadFrame:RegisterEvent("GROUP_JOINED");
+PREP_LoadFrame:RegisterEvent("LOADING_SCREEN_DISABLED");
+PREP_LoadFrame:RegisterEvent("LOADING_SCREEN_ENABLED");
 PREP_LoadFrame:RegisterEvent("GROUP_ROSTER_UPDATE");
+--PREP_LoadFrame:RegisterEvent("PLAYER_LOGOUT");
 PREP_LoadFrame:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
 PREP_LoadFrame.time = 0;
 PREP_LoadFrame.foundUnknown = false;
@@ -1032,6 +1387,18 @@ PREP_LoadFrame:SetScript("OnUpdate", function(self, elapsed)
 		end
 	end)
 
+function PREP_LoadFrame:LOADING_SCREEN_DISABLED()
+	_inLoadingScreen = false;
+	if PREP_AlertPopup.shownInLoading then
+		PREP_AlertPopup.combatFunc();
+		PREP_AlertPopup.shownInLoading = false;
+	end
+end
+function PREP_LoadFrame:LOADING_SCREEN_ENABLED()
+	_inLoadingScreen = true;
+	
+end
+	
 function PREP_LoadFrame:PLAYER_REGEN_DISABLED()
 	PREP_AlertPopup:Hide();
 	PREP_PlayerMetContainer:Hide();
@@ -1043,6 +1410,11 @@ function PREP_LoadFrame:PLAYER_REGEN_ENABLED()
 		ShowMainFrame();
 		_openedDuringCombat = false;
 	end
+	
+	if PREP_AlertPopup.shownInCombat then
+		PREP_AlertPopup.combatFunc();
+		PREP_AlertPopup.shownInCombat = false;
+	end
 end
 
 function PREP_LoadFrame:GROUP_JOINED()
@@ -1051,6 +1423,46 @@ end
 
 function PREP_LoadFrame:GROUP_ROSTER_UPDATE()
 	AddInstance();
+end
+
+function PREP_LoadFrame:PLAYER_LOGOUT()
+	for k, player in pairs(_benefitionalPlayers) do
+		if _allSavedPlayers[""..player.name] == nil then
+			local save = {};
+			save.race = player.race;
+			save.note = player.note;
+			save.name = player.name;
+			save.sex = player.sex;
+			save.firstStamp = player.firstStamp;
+			save.class = player.class;
+			save.score = player.score;
+			save.latestStamp = player.latestStamp;
+			save.timesMet = player.timesMet;
+
+			_allSavedPlayers[""..player.name] = save;
+		end
+	end
+end
+
+local function CheckVersionDifference(version)
+	_options.version = GetAddOnMetadata(addonName, "Version");
+	if version == nil or version < "6.2.02" then
+		-- Fix lack of timesMet
+		for k, player in pairs(_allSavedPlayers) do
+			if player.timesMet == nil then
+				player.timesMet = 1;
+			end
+			if player.score < 0 then
+				player.score = 0;
+				if player.note == "" or player.note == nil then
+					player.note = "Disliked in 6.2.01";
+				else
+					player.note = player.note .. " - Disliked in 6.2.01";
+				end
+			end
+		end
+		return;
+	end
 end
 
 function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
@@ -1068,30 +1480,40 @@ function PREP_LoadFrame:ADDON_LOADED(loadedAddon)
 	
 	
 	local currentTime = time();
-	for k, player in ipairs(PlayerRep.db.global.playersMet) do
-		if player.score ~= 0 or currentTime - player.latestStamp < _options.saveTime then
-			if (player.score == nil) then
-				player.score = 0;
-			end
-			table.insert(_playersMet, player);
+	for k, player in pairs(PlayerRep.db.global.playersMet) do
+		if (player.score == nil) then
+			player.score = 0;
 		end
+		if player.score ~= 0 or currentTime - player.latestStamp < _options.saveTime or (player.note ~= "" and player.note ~= nil) then
+			table.insert(_benefitionalPlayers, player);
+		else
+			
+		end
+		_allSavedPlayers[""..player.name] = player;
 	end
-	PlayerRep.db.global.playersMet = _playersMet;
+	PlayerRep.db.global.playersMet = _allSavedPlayers;
 	
 	_options.formatDate = PlayerRep.db.global.options.formatDate;
 	_options.formatTime = PlayerRep.db.global.options.formatTime;
 	_options.showPopup = PlayerRep.db.global.options.showPopup;
+	_options.popupSound = PlayerRep.db.global.options.popupSound;
 	_options.saveTime = PlayerRep.db.global.options.saveTime;
+	_options.version = PlayerRep.db.global.options.version;
+	_options.storageLimit = PlayerRep.db.global.options.storageLimit;
 	PlayerRep.db.global.options = _options;
 
 	PREP_Options.format.date:SetChecked(_options.formatDate);
 	PREP_Options.format.time:SetChecked(_options.formatTime);
 	PREP_Options.showPopup:SetChecked(_options.showPopup);
+	PREP_Options.popupSound:SetChecked(_options.popupSound);
 	PREP_Options.saveTime:SetText(_options.saveTime);
 	PREP_Options.saveTimeText:SetText(FormatSeconds(_options.saveTime)); 
+	PREP_Options.storageLimit:SetText(_options.storageLimit);
+	UpdateStorageCounter();
 	
 	SetDateTimeFormat(PREP_Options.format.date:GetChecked(), PREP_Options.format.time:GetChecked());
 	
+	CheckVersionDifference(_options.version);
 end
 
 ----------------------------------------
@@ -1106,12 +1528,43 @@ local function slashcmd(msg, editbox)
 	if msg == 'options' then
 		ShowMainFrame();
 		PREP_Options:Show();
-	elseif msg == "t" then
-		if UnitIsPlayer("target") then
-			AddPlayerToList("target");
-		end
+	elseif msg == "add" then
+		AddTargetPlayer(false, nil);
+		--if UnitIsPlayer("target") then
+		--	AddPlayerToList("target");
+		--end
+		
+	elseif string.sub(msg, 1, 4) == "note" then
+		AddTargetPlayer(false, string.sub(msg, 6));
+	elseif string.sub(msg, 1, 4) == "star" then
+		AddTargetPlayer(true, string.sub(msg, 6));
 	--[[
-	elseif msg == "g" then
+	elseif msg == "p" then
+		local liked = 0;
+		local metBefore = 0;
+		local notes = 0;
+		
+		local playerSave = nil ;
+		
+		for k, player in pairs(_allSavedPlayers) do
+				if player.timesMet > 1 then
+					metBefore = metBefore + 1;
+				end
+				if player.score == 1 then
+					liked = liked + 1;
+				end
+				if player.note ~= nil then
+					notes = notes + 1;
+				end
+		end
+		ShowPopUp(liked, notes, metBefore);
+	elseif msg == "h" then
+		for k, v in pairs(PlayerRep.db.global.options) do
+			print(k);
+			print(v);
+		end
+	elseif string.find(msg, "test") then
+
 
 		local now = time();
 		local temp = {{
@@ -1119,68 +1572,141 @@ local function slashcmd(msg, editbox)
 				["note"] = "Friendly player",
 				["name"] = "Hankin-Greymane",
 				["sex"] = "Female",
-				["firstStamp"] = now,
+				["firstStamp"] = 1,
 				["class"] = "Priest",
 				["score"] = 1,
-				["latestStamp"] = now,
+				["latestStamp"] = 5,
+				["timesMet"] = 2,
 			},
 			{
 				["race"] = "Bloodelf",
 				["note"] = "",
 				["name"] = "Kalle-Shadowsong",
 				["sex"] = "Male",
-				["firstStamp"] = now,
+				["firstStamp"] = 6,
 				["class"] = "Warlock",
 				["score"] = 0,
-				["latestStamp"] = now,
+				["latestStamp"] = 7,
+				["timesMet"] = 1,
 			},
 			{
 				["race"] = "Scourge",
 				["note"] = "",
 				["name"] = "Ophelia-Frostmane",
 				["sex"] = "Female",
-				["firstStamp"] = now,
+				["firstStamp"] = 4,
 				["class"] = "Rogue",
 				["score"] = 0,
-				["latestStamp"] = now,
+				["latestStamp"] = 2,
+				["timesMet"] = 1,
 			},
 			{
 				["race"] = "Pandaren",
-				["note"] = "Ninjapuller and calling people names",
+				["note"] = "Ninjapuller and insulting people",
 				["name"] = "Sying-Mazrigos",
 				["sex"] = "Female",
-				["firstStamp"] = now,
+				["firstStamp"] = 1,
 				["class"] = "Monk",
-				["score"] = -1,
-				["latestStamp"] = now,
+				["score"] = 0,
+				["latestStamp"] = 8,
+				["timesMet"] = 1,
 			},
 			{
 				["race"] = "Dwarf",
-				["note"] = "Great healer",
+				["note"] = "",
 				["name"] = "Bramrim-Earthen Ring",
 				["sex"] = "Male",
-				["firstStamp"] = now,
+				["firstStamp"] = 6,
 				["class"] = "Paladin",
 				["score"] = 1,
-				["latestStamp"] = now,
+				["latestStamp"] = 5,
+				["timesMet"] = 1,
+			},
+			{
+				["race"] = "Dwarf",
+				["note"] = "",
+				["name"] = "Bramrien Ring",
+				["sex"] = "Male",
+				["firstStamp"] = 6,
+				["class"] = "Paladin",
+				["score"] = 1,
+				["latestStamp"] = 5,
+				["timesMet"] = 2,
 			},
 			{
 				["race"] = "Tauren",
 				["note"] = "",
 				["name"] = "Bemen-Magtheridon",
 				["sex"] = "Male",
-				["firstStamp"] = now,
+				["firstStamp"] = 2,
 				["class"] = "Warrior",
 				["score"] = 0,
-				["latestStamp"] = now,
+				["latestStamp"] = 1,
+				["timesMet"] = 3,
+			},
+			{
+				["race"] = "Dwarf",
+				["note"] = "Great healer",
+				["name"] = "Bren Ring",
+				["sex"] = "Male",
+				["firstStamp"] = 4,
+				["class"] = "Paladin",
+				["score"] = 0,
+				["latestStamp"] = 3,
+				["timesMet"] = 1,
+			},
+			{
+				["race"] = "Dwarf",
+				["note"] = "",
+				["name"] = "Bramr= Ring",
+				["sex"] = "Male",
+				["firstStamp"] = 5,
+				["class"] = "Paladin",
+				["score"] = 0,
+				["latestStamp"] = 8,
+				["timesMet"] = 2,
+			},
+			{
+				["race"] = "Dwarf",
+				["note"] = "Great healer",
+				["name"] = "Bing",
+				["sex"] = "Male",
+				["firstStamp"] = 4,
+				["class"] = "Paladin",
+				["score"] = 1,
+				["latestStamp"] = 3,
+				["timesMet"] = 1,
+			},
 			}
+			
+			local blah = {};
+		for k, player in pairs(_allSavedPlayers) do
+			table.insert(blah, player);
+		end
+			
+		SortForRemoval(blah);
+		for k, player in ipairs(blah) do
+			print(player.name .. " = " .. player.score .. " - " .. player.note .. " - " .. player.timesMet .. " - " .. player.latestStamp);
+		end
+		
+		local start = CountStoredPlayers();
+		for i=start, start + times do
+			local now = time();
+			local temp = {
+				["timesMet"] = 1,
+				["race"] = "Tauren",
+				["note"] = "nr "..i,
+				["name"] = "Test_"..i,
+				["sex"] = "Male",
+				["firstStamp"] = now,
+				["class"] = "Shaman",
+				["score"] = 0,
+				["latestStamp"] = now, -- 86400
 			}
-		for k, player in ipairs(temp) do
-			player.firstStamp = now - (k*math.random(120,200));
-			player.latestStamp = now - (k*math.random(10,80));
-			table.insert(_playersMet, player);
+			table.insert(_allSavedPlayers, temp);
 			
 		end
+		CheckOverflow();
 		]]--
 	else
 		ShowMainFrame();
